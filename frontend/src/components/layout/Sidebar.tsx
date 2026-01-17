@@ -34,7 +34,7 @@ export function Sidebar() {
   const { sidebarOpen, sidebarCollapsed, setSidebarOpen, setSidebarCollapsed } = useUIStore();
   const { user, logout, hasMinimumRole } = useAuthStore();
 
-  const isAdmin = hasMinimumRole('moderator');
+  const isAdmin = user?.role === 'admin';
 
   return (
     <>

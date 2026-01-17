@@ -131,12 +131,6 @@ export default function LoginPage() {
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <a href="#" className="text-sm text-[#8B4513] hover:text-[#5c2d0d] hover:underline">
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
         </div>
 
         {/* Footer */}

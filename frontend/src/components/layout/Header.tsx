@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Search, Plus } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/store/ui-store';
 
@@ -9,8 +9,6 @@ const pageTitles: Record<string, string> = {
   '/leads': 'Leads',
   '/deals': 'Deals',
   '/enquiries': 'Búsquedas',
-  '/messages/whatsapp': 'WhatsApp',
-  '/messages/email': 'Correos',
   '/settings': 'Configuración',
 };
 
@@ -21,7 +19,7 @@ export function Header() {
   // Get page title
   const title = Object.entries(pageTitles).find(([path]) =>
     pathname.startsWith(path)
-  )?.[1] || 'CRM';
+  )?.[1] || 'HabitaCR';
 
   // Determine quick action based on current page
   const getQuickAction = () => {
@@ -40,45 +38,39 @@ export function Header() {
   const quickAction = getQuickAction();
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b flex items-center justify-between px-4 md:px-6">
+    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-black border-b border-[#e0ccb0] dark:border-[#3D2314] flex items-center justify-between px-4 md:px-6">
       {/* Page title */}
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold hidden md:block ml-0 md:ml-0">{title}</h1>
+        <h1 className="text-xl font-semibold text-black dark:text-white hidden md:block">{title}</h1>
       </div>
 
       {/* Search & Actions */}
       <div className="flex items-center gap-2 md:gap-4">
         {/* Search */}
         <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B4513]" size={18} />
           <input
             type="text"
             placeholder="Buscar..."
-            className="input pl-10 w-64"
+            className="pl-10 w-64 h-10 rounded-lg border border-[#e0ccb0] focus:ring-2 focus:ring-[#8B4513] focus:border-transparent"
           />
         </div>
 
         {/* Mobile search button */}
-        <button className="btn btn-ghost btn-icon md:hidden">
-          <Search size={20} />
+        <button className="p-2 hover:bg-[#f0e6d8] rounded-lg md:hidden">
+          <Search size={20} className="text-[#8B4513]" />
         </button>
 
         {/* Quick action button */}
         {quickAction && (
           <button
-            className="btn btn-primary btn-sm md:btn-md"
+            className="flex items-center gap-2 px-4 py-2 bg-[#8B4513] hover:bg-[#6b350f] text-white rounded-lg text-sm font-medium transition-colors"
             onClick={quickAction.action}
           >
-            <Plus size={18} className="md:mr-2" />
+            <Plus size={18} />
             <span className="hidden md:inline">{quickAction.label}</span>
           </button>
         )}
-
-        {/* Notifications */}
-        <button className="btn btn-ghost btn-icon relative">
-          <Bell size={20} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
       </div>
     </header>
   );

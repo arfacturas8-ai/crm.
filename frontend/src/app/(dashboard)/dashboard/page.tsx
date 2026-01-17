@@ -1,51 +1,53 @@
 'use client';
 
+import Link from 'next/link';
 import { useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
 import {
   Users,
   Kanban,
-  TrendingUp,
-  TrendingDown,
+  Search,
   MessageSquare,
-  UserPlus,
-  Phone,
+  ArrowRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { cn, formatRelativeTime, getWhatsAppLink, formatPhoneDisplay } from '@/lib/utils';
-import { LEAD_SOURCE_LABELS, DEAL_GROUP_LABELS } from '@/types';
+import { formatRelativeTime, getWhatsAppLink } from '@/lib/utils';
+import { LEAD_SOURCE_LABELS } from '@/types';
 
-// Dashboard stats query
+// Dashboard stats query - connects to WordPress GraphQL
 const GET_DASHBOARD_STATS = gql`
   query GetDashboardStats {
-    dashboardStats {
-      totalLeads
-      newLeadsToday
-      activeDeals
-      wonDeals
-      lostDeals
-      pendingEnquiries
-    }
-    recentLeads: leads(first: 5, where: { orderby: { field: CREATED_AT, order: DESC } }) {
+    crmLeads(first: 100) {
       nodes {
         id
-        name
-        email
-        mobile
-        source
-        createdAt
       }
     }
-    recentDeals: deals(first: 5, where: { orderby: { field: UPDATED_AT, order: DESC } }) {
+    crmDeals(first: 100) {
       nodes {
         id
-        leadName
+        dealGroup
+      }
+    }
+    recentLeads: crmLeads(first: 5, where: { orderby: { field: DATE, order: DESC } }) {
+      nodes {
+        id
+        databaseId
+        title
+        leadEmail
         leadMobile
-        group
-        busca
-        updatedAt
+        leadSource
+        date
+      }
+    }
+    recentDeals: crmDeals(first: 5, where: { orderby: { field: MODIFIED, order: DESC } }) {
+      nodes {
+        id
+        databaseId
+        title
+        dealGroup
+        dealBusca
+        modified
       }
     }
   }
@@ -56,73 +58,49 @@ function StatCard({
   title,
   value,
   icon: Icon,
-  trend,
-  trendValue,
-  color = 'primary',
+  href,
 }: {
   title: string;
   value: number | string;
   icon: React.ComponentType<{ className?: string }>;
-  trend?: 'up' | 'down';
-  trendValue?: string;
-  color?: 'primary' | 'success' | 'warning' | 'danger';
+  href: string;
 }) {
-  const colorClasses = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-green-100 text-green-600',
-    warning: 'bg-yellow-100 text-yellow-600',
-    danger: 'bg-red-100 text-red-600',
-  };
-
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
-            {trend && trendValue && (
-              <div className="flex items-center gap-1 mt-2">
-                {trend === 'up' ? (
-                  <TrendingUp className="w-4 h-4 text-green-500" />
-                ) : (
-                  <TrendingDown className="w-4 h-4 text-red-500" />
-                )}
-                <span
-                  className={cn(
-                    'text-sm',
-                    trend === 'up' ? 'text-green-500' : 'text-red-500'
-                  )}
-                >
-                  {trendValue}
-                </span>
-              </div>
-            )}
+    <Link href={href}>
+      <Card className="hover:shadow-md transition-shadow cursor-pointer border-[#e0ccb0]">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">{title}</p>
+              <p className="text-3xl font-bold mt-1 text-black dark:text-white">{value}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-[#f0e6d8]">
+              <Icon className="w-6 h-6 text-[#8B4513]" />
+            </div>
           </div>
-          <div className={cn('p-3 rounded-xl', colorClasses[color])}>
-            <Icon className="w-6 h-6" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
 export default function DashboardPage() {
-  const { data, loading } = useQuery(GET_DASHBOARD_STATS);
+  const { data, loading, error } = useQuery(GET_DASHBOARD_STATS, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Mock data for initial rendering
-  const stats = data?.dashboardStats || {
-    totalLeads: 0,
-    newLeadsToday: 0,
-    activeDeals: 0,
-    wonDeals: 0,
-    lostDeals: 0,
-    pendingEnquiries: 0,
-  };
-
+  // Calculate stats from data
+  const allLeads = data?.crmLeads?.nodes || [];
+  const allDeals = data?.crmDeals?.nodes || [];
   const recentLeads = data?.recentLeads?.nodes || [];
   const recentDeals = data?.recentDeals?.nodes || [];
+
+  const stats = {
+    totalLeads: allLeads.length,
+    activeDeals: allDeals.filter((d: any) => d.dealGroup === 'active').length,
+    wonDeals: allDeals.filter((d: any) => d.dealGroup === 'won').length,
+    totalDeals: allDeals.length,
+  };
 
   return (
     <div className="space-y-6">
@@ -130,51 +108,53 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Leads"
-          value={stats.totalLeads}
+          value={loading ? '...' : stats.totalLeads}
           icon={Users}
-          trend="up"
-          trendValue="+12%"
-          color="primary"
-        />
-        <StatCard
-          title="Nuevos Hoy"
-          value={stats.newLeadsToday}
-          icon={UserPlus}
-          color="success"
+          href="/leads"
         />
         <StatCard
           title="Deals Activos"
-          value={stats.activeDeals}
+          value={loading ? '...' : stats.activeDeals}
           icon={Kanban}
-          color="warning"
+          href="/deals"
         />
         <StatCard
           title="Clientes Potenciales"
-          value={stats.wonDeals}
-          icon={TrendingUp}
-          color="success"
+          value={loading ? '...' : stats.wonDeals}
+          icon={Users}
+          href="/deals"
+        />
+        <StatCard
+          title="Total Deals"
+          value={loading ? '...' : stats.totalDeals}
+          icon={Search}
+          href="/deals"
         />
       </div>
 
       {/* Recent Activity Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Leads */}
-        <Card>
+        <Card className="border-[#e0ccb0]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg">Leads Recientes</CardTitle>
-            <Button variant="ghost" size="sm">
+            <CardTitle className="text-lg text-black dark:text-white">Leads Recientes</CardTitle>
+            <Link
+              href="/leads"
+              className="text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
+            >
               Ver todos
-            </Button>
+              <ArrowRight size={14} />
+            </Link>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="animate-pulse flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full" />
+                    <div className="w-10 h-10 bg-[#e0ccb0] rounded-full" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
-                      <div className="h-3 bg-gray-200 rounded w-1/2" />
+                      <div className="h-4 bg-[#e0ccb0] rounded w-3/4" />
+                      <div className="h-3 bg-[#e0ccb0] rounded w-1/2" />
                     </div>
                   </div>
                 ))}
@@ -182,66 +162,79 @@ export default function DashboardPage() {
             ) : recentLeads.length > 0 ? (
               <div className="space-y-3">
                 {recentLeads.map((lead: any) => (
-                  <div
+                  <Link
                     key={lead.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    href={`/leads?id=${lead.databaseId || lead.id}`}
+                    className="flex items-center justify-between p-3 rounded-lg bg-[#faf5f0] dark:bg-[#111] hover:bg-[#f0e6d8] dark:hover:bg-[#1a1a1a] transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-primary font-medium">
-                          {lead.name?.charAt(0).toUpperCase() || '?'}
+                      <div className="w-10 h-10 bg-[#8B4513] rounded-full flex items-center justify-center">
+                        <span className="text-white font-medium">
+                          {lead.title?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium">{lead.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {LEAD_SOURCE_LABELS[lead.source as keyof typeof LEAD_SOURCE_LABELS] || lead.source}
+                        <p className="font-medium text-black dark:text-white">{lead.title}</p>
+                        <p className="text-sm text-gray-500">
+                          {LEAD_SOURCE_LABELS[lead.leadSource as keyof typeof LEAD_SOURCE_LABELS] || lead.leadSource || 'Sin fuente'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {lead.mobile && (
+                      {lead.leadMobile && (
                         <a
-                          href={getWhatsAppLink(lead.mobile)}
+                          href={getWhatsAppLink(lead.leadMobile)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn btn-whatsapp btn-icon"
+                          className="p-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <MessageSquare size={16} />
                         </a>
                       )}
-                      <span className="text-xs text-muted-foreground">
-                        {formatRelativeTime(lead.createdAt)}
+                      <span className="text-xs text-gray-500">
+                        {lead.date ? formatRelativeTime(lead.date) : ''}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No hay leads recientes
-              </p>
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 mx-auto text-[#cca87a] mb-3" />
+                <p className="text-gray-500">No hay leads recientes</p>
+                <Link
+                  href="/leads"
+                  className="text-[#8B4513] hover:underline text-sm mt-2 inline-block"
+                >
+                  Crear primer lead
+                </Link>
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* Recent Deals */}
-        <Card>
+        <Card className="border-[#e0ccb0]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg">Deals Recientes</CardTitle>
-            <Button variant="ghost" size="sm">
+            <CardTitle className="text-lg text-black dark:text-white">Deals Recientes</CardTitle>
+            <Link
+              href="/deals"
+              className="text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
+            >
               Ver todos
-            </Button>
+              <ArrowRight size={14} />
+            </Link>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="animate-pulse flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full" />
+                    <div className="w-10 h-10 bg-[#e0ccb0] rounded-full" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
-                      <div className="h-3 bg-gray-200 rounded w-1/2" />
+                      <div className="h-4 bg-[#e0ccb0] rounded w-3/4" />
+                      <div className="h-3 bg-[#e0ccb0] rounded w-1/2" />
                     </div>
                   </div>
                 ))}
@@ -249,76 +242,66 @@ export default function DashboardPage() {
             ) : recentDeals.length > 0 ? (
               <div className="space-y-3">
                 {recentDeals.map((deal: any) => (
-                  <div
+                  <Link
                     key={deal.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    href={`/deals?id=${deal.databaseId || deal.id}`}
+                    className="flex items-center justify-between p-3 rounded-lg bg-[#faf5f0] dark:bg-[#111] hover:bg-[#f0e6d8] dark:hover:bg-[#1a1a1a] transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Kanban className="w-5 h-5 text-primary" />
+                      <div className="w-10 h-10 bg-[#8B4513]/10 rounded-full flex items-center justify-center">
+                        <Kanban className="w-5 h-5 text-[#8B4513]" />
                       </div>
                       <div>
-                        <p className="font-medium">{deal.leadName}</p>
-                        <p className="text-sm text-muted-foreground capitalize">
-                          {deal.busca}
+                        <p className="font-medium text-black dark:text-white">{deal.title}</p>
+                        <p className="text-sm text-gray-500 capitalize">
+                          {deal.dealBusca || 'Sin especificar'}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          deal.group === 'won'
-                            ? 'won'
-                            : deal.group === 'lost'
-                            ? 'lost'
-                            : 'active'
-                        }
-                      >
-                        {deal.group === 'active'
-                          ? 'Seguimiento'
-                          : deal.group === 'won'
-                          ? 'Potencial'
-                          : 'Descartado'}
-                      </Badge>
-                    </div>
-                  </div>
+                    <Badge
+                      variant={
+                        deal.dealGroup === 'won'
+                          ? 'won'
+                          : deal.dealGroup === 'lost'
+                          ? 'lost'
+                          : 'active'
+                      }
+                    >
+                      {deal.dealGroup === 'active'
+                        ? 'Seguimiento'
+                        : deal.dealGroup === 'won'
+                        ? 'Potencial'
+                        : 'Descartado'}
+                    </Badge>
+                  </Link>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No hay deals recientes
-              </p>
+              <div className="text-center py-8">
+                <Kanban className="w-12 h-12 mx-auto text-[#cca87a] mb-3" />
+                <p className="text-gray-500">No hay deals recientes</p>
+                <Link
+                  href="/deals"
+                  className="text-[#8B4513] hover:underline text-sm mt-2 inline-block"
+                >
+                  Crear primer deal
+                </Link>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Acciones Rápidas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <UserPlus className="w-5 h-5" />
-              <span>Nuevo Lead</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <Kanban className="w-5 h-5" />
-              <span>Nuevo Deal</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <MessageSquare className="w-5 h-5" />
-              <span>Enviar WhatsApp</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <Phone className="w-5 h-5" />
-              <span>Registrar Llamada</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Error message if GraphQL fails */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <p className="text-red-600 text-sm">
+              Error conectando con el servidor. Verifica la configuración de GraphQL.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
