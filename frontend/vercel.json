@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "regions": ["iad1", "gru1"],
+  "env": {
+    "NEXT_PUBLIC_GRAPHQL_ENDPOINT": "@graphql-endpoint",
+    "WHATSAPP_ACCESS_TOKEN": "@whatsapp-access-token",
+    "WHATSAPP_PHONE_NUMBER_ID": "@whatsapp-phone-id",
+    "SMTP_HOST": "@smtp-host",
+    "SMTP_PORT": "@smtp-port",
+    "SMTP_USER": "@smtp-user",
+    "SMTP_PASSWORD": "@smtp-password",
+    "EMAIL_FROM": "@email-from",
+    "NEXTAUTH_SECRET": "@nextauth-secret",
+    "NEXTAUTH_URL": "@nextauth-url"
+  }
+}
