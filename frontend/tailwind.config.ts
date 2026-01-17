@@ -15,19 +15,20 @@ const config: Config = {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        // Primary: Café/Brown
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#faf5f0',
+          100: '#f0e6d8',
+          200: '#e0ccb0',
+          300: '#cca87a',
+          400: '#b8854d',
+          500: '#8B4513',  // Saddle Brown - main café
+          600: '#7a3d11',
+          700: '#6b350f',
+          800: '#5c2d0d',
+          900: '#4d250b',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -53,14 +54,27 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Deal status colors
+        // Deal status colors - using brown scale
         deal: {
-          active: '#fbbf24',    // Amarillo: Dar seguimiento
-          won: '#22c55e',       // Verde: Cliente potencial
-          lost: '#ef4444',      // Rojo: Descartado
+          active: '#D4A574',   // Light brown: Dar seguimiento
+          won: '#8B4513',      // Café: Cliente potencial
+          lost: '#3D2314',     // Dark brown: Descartado
         },
-        // WhatsApp green
+        // WhatsApp green (keep for WhatsApp buttons)
         whatsapp: '#25D366',
+        // Café palette
+        cafe: {
+          50: '#faf5f0',
+          100: '#f0e6d8',
+          200: '#e0ccb0',
+          300: '#cca87a',
+          400: '#b8854d',
+          500: '#8B4513',
+          600: '#7a3d11',
+          700: '#6b350f',
+          800: '#5c2d0d',
+          900: '#4d250b',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

@@ -6,48 +6,50 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    /* Blanco, Negro, Café - Light Mode */
+    --background: 0 0% 100%;           /* Blanco puro */
+    --foreground: 0 0% 0%;             /* Negro puro */
+    --card: 0 0% 100%;                 /* Blanco */
+    --card-foreground: 0 0% 0%;        /* Negro */
+    --popover: 0 0% 100%;              /* Blanco */
+    --popover-foreground: 0 0% 0%;     /* Negro */
+    --primary: 25 76% 31%;             /* Café (#8B4513) */
+    --primary-foreground: 0 0% 100%;   /* Blanco */
+    --secondary: 30 20% 95%;           /* Crema claro */
+    --secondary-foreground: 0 0% 0%;   /* Negro */
+    --muted: 30 15% 93%;               /* Gris cálido */
+    --muted-foreground: 0 0% 40%;      /* Gris oscuro */
+    --accent: 25 50% 90%;              /* Café muy claro */
+    --accent-foreground: 25 76% 31%;   /* Café */
+    --destructive: 0 0% 20%;           /* Negro suave para eliminar */
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 10% 85%;              /* Borde gris cálido */
+    --input: 30 10% 85%;
+    --ring: 25 76% 31%;                /* Café para focus */
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    /* Blanco, Negro, Café - Dark Mode */
+    --background: 0 0% 5%;             /* Negro casi puro */
+    --foreground: 0 0% 98%;            /* Blanco */
+    --card: 0 0% 8%;                   /* Negro suave */
+    --card-foreground: 0 0% 98%;       /* Blanco */
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 25 60% 45%;             /* Café más claro para dark mode */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 15%;             /* Gris oscuro */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 25 40% 20%;              /* Café oscuro */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 0% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 25 60% 45%;
   }
 
   * {
@@ -139,28 +141,28 @@
   }
 
   .badge-success {
-    @apply bg-green-100 text-green-800;
+    @apply bg-[#f0e6d8] text-[#5c2d0d];
   }
 
   .badge-warning {
-    @apply bg-yellow-100 text-yellow-800;
+    @apply bg-[#e0ccb0] text-[#4d250b];
   }
 
   .badge-danger {
-    @apply bg-red-100 text-red-800;
+    @apply bg-[#3D2314] text-white;
   }
 
-  /* Deal status badges */
+  /* Deal status badges - Café scale */
   .badge-active {
-    @apply bg-yellow-100 text-yellow-800 border border-yellow-300;
+    @apply bg-[#e0ccb0] text-[#5c2d0d] border border-[#cca87a];
   }
 
   .badge-won {
-    @apply bg-green-100 text-green-800 border border-green-300;
+    @apply bg-[#8B4513] text-white border border-[#6b350f];
   }
 
   .badge-lost {
-    @apply bg-red-100 text-red-800 border border-red-300;
+    @apply bg-[#3D2314] text-white border border-[#2a180e];
   }
 
   /* WhatsApp button */

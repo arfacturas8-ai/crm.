@@ -67,13 +67,13 @@ export function Sidebar() {
         )}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-[#e0ccb0] dark:border-[#3D2314]">
           {!sidebarCollapsed && (
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">C</span>
+              <div className="w-8 h-8 bg-[#8B4513] rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">H</span>
               </div>
-              <span className="font-semibold text-lg">CRM</span>
+              <span className="font-semibold text-lg text-black dark:text-white">HabitaCR</span>
             </Link>
           )}
 

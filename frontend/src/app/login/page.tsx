@@ -73,24 +73,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-white to-blue-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white font-bold text-3xl">C</span>
+          <div className="w-20 h-20 bg-[#8B4513] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <span className="text-white font-bold text-4xl">H</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM</h1>
-          <p className="text-muted-foreground mt-1">Sistema de Gestión de Clientes</p>
+          <h1 className="text-3xl font-bold text-black dark:text-white">HabitaCR</h1>
+          <p className="text-[#8B4513] mt-1 font-medium">CRM Inmobiliario</p>
         </div>
 
         {/* Login card */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-center mb-6">Iniciar sesión</h2>
+        <div className="bg-white dark:bg-[#111] rounded-2xl shadow-xl border border-[#e0ccb0] dark:border-[#3D2314] p-8">
+          <h2 className="text-xl font-semibold text-center mb-6 text-black dark:text-white">
+            Iniciar sesión
+          </h2>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-              label="Usuario"
+              label="Usuario de WordPress"
               type="text"
               placeholder="Ingrese su usuario"
               error={errors.username?.message}
@@ -107,7 +109,7 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                className="absolute right-3 top-[38px] text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-[38px] text-[#8B4513] hover:text-[#5c2d0d]"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -115,14 +117,14 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg">
+              <div className="bg-[#f0e6d8] dark:bg-[#3D2314] text-[#5c2d0d] dark:text-white text-sm p-3 rounded-lg border border-[#cca87a]">
                 {error}
               </div>
             )}
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-[#8B4513] hover:bg-[#6b350f] text-white"
               size="lg"
               isLoading={loading}
             >
@@ -131,15 +133,15 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <a href="#" className="text-sm text-primary hover:underline">
+            <a href="#" className="text-sm text-[#8B4513] hover:text-[#5c2d0d] hover:underline">
               ¿Olvidaste tu contraseña?
             </a>
           </div>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          © {new Date().getFullYear()} CRM. Todos los derechos reservados.
+        <p className="text-center text-sm text-[#8B4513] mt-6">
+          © {new Date().getFullYear()} HabitaCR. Todos los derechos reservados.
         </p>
       </div>
     </div>
