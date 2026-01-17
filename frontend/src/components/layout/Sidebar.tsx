@@ -7,8 +7,6 @@ import {
   Users,
   Kanban,
   Search,
-  MessageSquare,
-  Mail,
   Settings,
   LogOut,
   ChevronLeft,
@@ -25,8 +23,6 @@ const navigation = [
   { name: 'Leads', href: '/leads', icon: Users },
   { name: 'Deals', href: '/deals', icon: Kanban },
   { name: 'Búsquedas', href: '/enquiries', icon: Search },
-  { name: 'WhatsApp', href: '/messages/whatsapp', icon: MessageSquare },
-  { name: 'Correos', href: '/messages/email', icon: Mail },
 ];
 
 const adminNavigation = [
