@@ -77,9 +77,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-[#8B4513] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white font-bold text-4xl">H</span>
-          </div>
+          <img
+            src="/images/habita-logo.jpg"
+            alt="HabitaCR"
+            className="w-24 h-24 object-contain mx-auto mb-4 rounded-2xl shadow-lg"
+          />
           <h1 className="text-3xl font-bold text-black dark:text-white">HabitaCR</h1>
           <p className="text-[#8B4513] mt-1 font-medium">CRM Inmobiliario</p>
         </div>

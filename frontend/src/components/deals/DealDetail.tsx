@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@apollo/client';
 import {
   User,
@@ -12,6 +13,8 @@ import {
   Clock,
   Target,
   ArrowRight,
+  Printer,
+  Home,
 } from 'lucide-react';
 import { GET_DEAL } from '@/graphql/queries/deals';
 import { Badge } from '@/components/ui/Badge';
@@ -31,12 +34,15 @@ import {
   DEAL_PROXIMO_PASO_LABELS,
   type Deal,
 } from '@/types';
+import { PropertySelector } from '@/components/ui/PropertySelector';
 
 interface DealDetailProps {
   deal: Deal;
 }
 
 export function DealDetail({ deal }: DealDetailProps) {
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+
   // Fetch full deal details
   const { data, loading } = useQuery(GET_DEAL, {
     variables: { id: deal.id },
@@ -46,6 +52,97 @@ export function DealDetail({ deal }: DealDetailProps) {
   const lead = (fullDeal as any)?.lead;
   const notes = (fullDeal as any)?.notes || [];
   const activities = (fullDeal as any)?.activities || [];
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const propertyInfo = selectedProperty ? `
+      <div style="margin-top: 20px; padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px;">
+        <h3 style="color: #8B4513; margin: 0 0 10px 0; font-size: 14px;">Propiedad Vinculada</h3>
+        <p style="margin: 5px 0;"><strong>${selectedProperty.title}</strong></p>
+        ${selectedProperty.propertyDetails?.propertyAddress ? `<p style="margin: 5px 0; color: #666;">${selectedProperty.propertyDetails.propertyAddress}</p>` : ''}
+        ${selectedProperty.propertyDetails?.propertyPrice ? `<p style="margin: 5px 0; color: #8B4513; font-weight: bold;">$${selectedProperty.propertyDetails.propertyPrice.toLocaleString()}</p>` : ''}
+      </div>
+    ` : '';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Deal - ${fullDeal.leadName}</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
+          .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
+          .logo { height: 60px; margin-right: 20px; }
+          .title { color: #8B4513; font-size: 24px; font-weight: bold; }
+          .subtitle { color: #666; font-size: 14px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+          .info-card { padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px; }
+          .info-label { color: #8B4513; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+          .info-item { margin: 8px 0; }
+          .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; background: #f0e6d8; color: #8B4513; }
+          .badge-won { background: #d1fae5; color: #065f46; }
+          .badge-lost { background: #fee2e2; color: #991b1b; }
+          .badge-active { background: #e0f2fe; color: #0369a1; }
+          .footer { margin-top: 40px; text-align: center; color: #8B4513; font-size: 12px; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <img src="/images/habita-logo.jpg" class="logo" alt="HabitaCR" onerror="this.style.display='none'" />
+          <div>
+            <div class="title">HabitaCR - Ficha de Deal</div>
+            <div class="subtitle">Generado el ${new Date().toLocaleDateString('es-CR', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+          <div style="width: 60px; height: 60px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <span style="color: white; font-size: 24px; font-weight: bold;">${fullDeal.leadName?.charAt(0).toUpperCase()}</span>
+          </div>
+          <div>
+            <h2 style="margin: 0; color: #333;">${fullDeal.leadName}</h2>
+            <span class="badge badge-${fullDeal.group}">${DEAL_GROUP_LABELS[fullDeal.group]}</span>
+            <span class="badge" style="margin-left: 8px;">${DEAL_BUSCA_LABELS[fullDeal.busca] || fullDeal.busca}</span>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-label">Información de Contacto</div>
+            ${fullDeal.leadMobile ? `<div class="info-item">📱 ${fullDeal.leadMobile}</div>` : ''}
+            ${fullDeal.leadEmail ? `<div class="info-item">✉️ ${fullDeal.leadEmail}</div>` : ''}
+            <div class="info-item">📅 ${formatDate(fullDeal.createdAt)}</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Estado del Deal</div>
+            <div class="info-item">${DEAL_ESTADO_LABELS[fullDeal.estado] || fullDeal.estado}</div>
+            ${fullDeal.calificacion ? `<div class="info-item">Calificación: ${DEAL_CALIFICACION_LABELS[fullDeal.calificacion]}</div>` : ''}
+            ${fullDeal.proximoPaso ? `<div class="info-item">Próximo paso: ${DEAL_PROXIMO_PASO_LABELS[fullDeal.proximoPaso]}</div>` : ''}
+          </div>
+        </div>
+
+        ${fullDeal.detalles ? `
+          <div class="info-card" style="margin-top: 20px;">
+            <div class="info-label">Detalles</div>
+            <p style="margin: 0; white-space: pre-wrap;">${fullDeal.detalles}</p>
+          </div>
+        ` : ''}
+
+        ${propertyInfo}
+
+        <div class="footer">
+          <p>HabitaCR - CRM Inmobiliario</p>
+          <p>www.habitacr.com</p>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
 
   return (
     <div className="space-y-6">
@@ -105,6 +202,9 @@ export function DealDetail({ deal }: DealDetailProps) {
               </Button>
             </a>
           )}
+          <Button variant="outline" leftIcon={<Printer size={16} />} onClick={handlePrint}>
+            Imprimir
+          </Button>
         </div>
       </div>
 
@@ -169,15 +269,19 @@ export function DealDetail({ deal }: DealDetailProps) {
         </Card>
       </div>
 
-      {/* Property */}
-      {fullDeal.propiedad && (
-        <Card className="p-4">
-          <h3 className="font-medium text-sm text-muted-foreground mb-2">
-            Propiedad de Interés
-          </h3>
-          <p>{fullDeal.propiedad}</p>
-        </Card>
-      )}
+      {/* Property Selector */}
+      <Card className="p-4 border-[#e0ccb0]">
+        <h3 className="font-medium text-sm text-[#8B4513] mb-3 uppercase tracking-wide">
+          Vincular Propiedad
+        </h3>
+        <PropertySelector
+          selectedProperty={selectedProperty}
+          onSelect={setSelectedProperty}
+        />
+        {fullDeal.propiedad && !selectedProperty && (
+          <p className="text-sm text-gray-500 mt-2">Propiedad original: {fullDeal.propiedad}</p>
+        )}
+      </Card>
 
       {/* Dates */}
       {(fullDeal.fecha1 || fullDeal.fecha2 || fullDeal.visitaConfirmada) && (

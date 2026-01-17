@@ -16,6 +16,8 @@ import {
   X,
   CheckCircle,
   AlertCircle,
+  Printer,
+  Home,
 } from 'lucide-react';
 import { GET_LEAD } from '@/graphql/queries/leads';
 import { Badge, getLeadStatusVariant } from '@/components/ui/Badge';
@@ -28,6 +30,7 @@ import {
   formatPhoneDisplay,
 } from '@/lib/utils';
 import { LEAD_SOURCE_LABELS, type Lead, type LeadSource } from '@/types';
+import { PropertySelector } from '@/components/ui/PropertySelector';
 
 interface LeadDetailProps {
   lead: Lead;
@@ -44,6 +47,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [newNote, setNewNote] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
 
   const { data, loading, refetch } = useQuery(GET_LEAD, {
     variables: { id: lead.id },
@@ -86,6 +90,94 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       window.open(getWhatsAppLink(fullLead.mobile, whatsappMessage), '_blank');
       setWhatsappMessage('');
     }
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const propertyInfo = selectedProperty ? `
+      <div style="margin-top: 20px; padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px;">
+        <h3 style="color: #8B4513; margin: 0 0 10px 0; font-size: 14px;">Propiedad Vinculada</h3>
+        <p style="margin: 5px 0;"><strong>${selectedProperty.title}</strong></p>
+        ${selectedProperty.propertyDetails?.propertyAddress ? `<p style="margin: 5px 0; color: #666;">${selectedProperty.propertyDetails.propertyAddress}</p>` : ''}
+        ${selectedProperty.propertyDetails?.propertyPrice ? `<p style="margin: 5px 0; color: #8B4513; font-weight: bold;">$${selectedProperty.propertyDetails.propertyPrice.toLocaleString()}</p>` : ''}
+      </div>
+    ` : '';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Lead - ${fullLead.name}</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
+          .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
+          .logo { height: 60px; margin-right: 20px; }
+          .title { color: #8B4513; font-size: 24px; font-weight: bold; }
+          .subtitle { color: #666; font-size: 14px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+          .info-card { padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px; }
+          .info-label { color: #8B4513; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+          .info-item { margin: 8px 0; }
+          .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+          .badge-new { background: #e0f2fe; color: #0369a1; }
+          .badge-contacted { background: #fef3c7; color: #92400e; }
+          .badge-qualified { background: #d1fae5; color: #065f46; }
+          .footer { margin-top: 40px; text-align: center; color: #8B4513; font-size: 12px; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <img src="/images/habita-logo.jpg" class="logo" alt="HabitaCR" onerror="this.style.display='none'" />
+          <div>
+            <div class="title">HabitaCR - Ficha de Lead</div>
+            <div class="subtitle">Generado el ${new Date().toLocaleDateString('es-CR', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+          <div style="width: 60px; height: 60px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <span style="color: white; font-size: 24px; font-weight: bold;">${fullLead.name?.charAt(0).toUpperCase()}</span>
+          </div>
+          <div>
+            <h2 style="margin: 0; color: #333;">${fullLead.name}</h2>
+            <span class="badge badge-${fullLead.status}">${fullLead.status === 'new' ? 'Nuevo' : fullLead.status === 'contacted' ? 'Contactado' : fullLead.status === 'qualified' ? 'Calificado' : fullLead.status}</span>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-label">Información de Contacto</div>
+            ${fullLead.mobile ? `<div class="info-item">📱 ${fullLead.mobile}</div>` : ''}
+            ${fullLead.email ? `<div class="info-item">✉️ ${fullLead.email}</div>` : ''}
+            <div class="info-item">📅 ${formatDate(fullLead.createdAt)}</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Origen</div>
+            <div class="info-item">${LEAD_SOURCE_LABELS[fullLead.source as LeadSource] || fullLead.source || 'Sin especificar'}</div>
+          </div>
+        </div>
+
+        ${fullLead.message ? `
+          <div class="info-card" style="margin-top: 20px;">
+            <div class="info-label">Mensaje del Lead</div>
+            <p style="margin: 0; white-space: pre-wrap;">${fullLead.message}</p>
+          </div>
+        ` : ''}
+
+        ${propertyInfo}
+
+        <div class="footer">
+          <p>HabitaCR - CRM Inmobiliario</p>
+          <p>www.habitacr.com</p>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const handleSendEmail = async () => {
@@ -185,6 +277,10 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
             </Button>
           </a>
         )}
+        <Button size="sm" variant="outline" className="border-[#8B4513] text-[#8B4513]" onClick={handlePrint}>
+          <Printer size={16} className="mr-2" />
+          Imprimir
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -245,18 +341,12 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
 
               <Card className="p-4 border-[#e0ccb0]">
                 <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-                  Propiedad de Interés
+                  Vincular Propiedad
                 </h3>
-                {fullLead.propertyTitle ? (
-                  <div>
-                    <p className="font-medium text-black dark:text-white">{fullLead.propertyTitle}</p>
-                    <Button size="sm" variant="outline" className="mt-3 border-[#8B4513] text-[#8B4513]">
-                      Ver propiedad
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-gray-500">No hay propiedad asociada</p>
-                )}
+                <PropertySelector
+                  selectedProperty={selectedProperty}
+                  onSelect={setSelectedProperty}
+                />
               </Card>
             </div>
 
