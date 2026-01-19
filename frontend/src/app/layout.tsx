@@ -3,14 +3,14 @@ import { ApolloWrapper } from '@/lib/apollo-provider';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'CRM - Sistema de Gestión de Clientes',
-  description: 'Sistema CRM para gestión de leads, deals y propiedades inmobiliarias',
-  keywords: ['CRM', 'inmobiliaria', 'leads', 'deals', 'propiedades'],
-  authors: [{ name: 'CRM Team' }],
+  title: 'HabitaCR - CRM Inmobiliario',
+  description: 'Sistema CRM para gestión de leads, deals y propiedades inmobiliarias de HabitaCR',
+  keywords: ['CRM', 'inmobiliaria', 'leads', 'deals', 'propiedades', 'HabitaCR', 'Costa Rica'],
+  authors: [{ name: 'HabitaCR' }],
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: '/images/habita-logo.jpg',
+    apple: '/images/habita-logo.jpg',
   },
 };
 
@@ -19,8 +19,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+    { media: '(prefers-color-scheme: light)', color: '#8B4513' },
+    { media: '(prefers-color-scheme: dark)', color: '#8B4513' },
   ],
 };
 

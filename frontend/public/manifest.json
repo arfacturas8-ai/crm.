@@ -1,0 +1,21 @@
+{
+  "name": "HabitaCR CRM",
+  "short_name": "HabitaCR",
+  "description": "CRM Inmobiliario para HabitaCR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8B4513",
+  "icons": [
+    {
+      "src": "/images/habita-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/images/habita-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
