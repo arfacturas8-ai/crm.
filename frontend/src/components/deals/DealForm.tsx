@@ -1,14 +1,16 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CREATE_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
-import { GET_LEADS } from '@/graphql/queries/leads';
+import { GET_LEADS, UPDATE_LEAD } from '@/graphql/queries/leads';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { PropertySelector } from '@/components/ui/PropertySelector';
 import { useUIStore } from '@/store/ui-store';
 import { type Deal } from '@/types';
 
@@ -37,6 +39,7 @@ const STAGE_OPTIONS = [
 export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const { addNotification } = useUIStore();
   const isEditing = !!deal;
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
 
   // Fetch leads for dropdown
   const { data: leadsData } = useQuery(GET_LEADS, {
@@ -52,6 +55,8 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -63,8 +68,22 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     },
   });
 
+  const selectedLeadId = watch('leadId');
+
+  // Auto-fill title when property is selected
+  useEffect(() => {
+    if (selectedProperty && !isEditing) {
+      setValue('title', selectedProperty.title);
+      // Also set value from property price if available
+      if (selectedProperty.propertyPrice) {
+        setValue('value', selectedProperty.propertyPrice);
+      }
+    }
+  }, [selectedProperty, setValue, isEditing]);
+
   const [createDeal, { loading: createLoading }] = useMutation(CREATE_DEAL, {
     refetchQueries: ['GetDeals', 'GetDealsByStage', 'GetDashboardStats'],
+    awaitRefetchQueries: true,
     onCompleted: (data) => {
       if (data?.createDeal?.deal) {
         addNotification({
@@ -92,6 +111,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
     refetchQueries: ['GetDeals', 'GetDeal', 'GetDealsByStage', 'GetDashboardStats'],
+    awaitRefetchQueries: true,
     onCompleted: (data) => {
       if (data?.updateDeal?.deal) {
         addNotification({
@@ -117,9 +137,28 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     },
   });
 
+  // Update lead's propertyId when a property is selected
+  const [updateLead] = useMutation(UPDATE_LEAD);
+
   const loading = createLoading || updateLoading;
 
-  const onSubmit = (data: DealFormData) => {
+  const onSubmit = async (data: DealFormData) => {
+    // If property is selected, update the lead's propertyId
+    if (selectedProperty && data.leadId) {
+      try {
+        await updateLead({
+          variables: {
+            input: {
+              id: data.leadId,
+              propertyId: selectedProperty.databaseId?.toString(),
+            },
+          },
+        });
+      } catch (err) {
+        console.error('Error updating lead property:', err);
+      }
+    }
+
     if (isEditing) {
       updateDeal({
         variables: {
@@ -147,14 +186,6 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Title */}
-      <Input
-        label="Título del Deal *"
-        placeholder="Ej: Compra casa en Grecia..."
-        error={errors.title?.message}
-        {...register('title')}
-      />
-
       {/* Lead Selection */}
       <Select
         label="Lead *"
@@ -162,6 +193,25 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         placeholder="Seleccionar lead..."
         error={errors.leadId?.message}
         {...register('leadId')}
+      />
+
+      {/* Property Selector */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Vincular Propiedad
+        </label>
+        <PropertySelector
+          selectedProperty={selectedProperty}
+          onSelect={setSelectedProperty}
+        />
+      </div>
+
+      {/* Title */}
+      <Input
+        label="Título del Deal *"
+        placeholder="Ej: Compra casa en Grecia..."
+        error={errors.title?.message}
+        {...register('title')}
       />
 
       {/* Stage and Value */}
@@ -174,7 +224,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         />
 
         <Input
-          label="Valor (₡)"
+          label="Valor"
           type="number"
           placeholder="0"
           error={errors.value?.message}

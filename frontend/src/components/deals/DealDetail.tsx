@@ -86,8 +86,8 @@ export function DealDetail({ deal }: DealDetailProps) {
         <div class="info-grid">
           <div class="info-card">
             <div class="info-label">Información del Deal</div>
-            <div class="info-item">📅 Creado: ${formatDate(fullDeal.createdAt)}</div>
-            ${fullDeal.value ? `<div class="info-item">💰 Valor: ${formatCurrency(fullDeal.value)}</div>` : ''}
+            <div class="info-item">Creado: ${formatDate(fullDeal.createdAt)}</div>
+            ${fullDeal.value ? `<div class="info-item">Valor: ${formatCurrency(fullDeal.value)}</div>` : ''}
           </div>
           <div class="info-card">
             <div class="info-label">Estado</div>

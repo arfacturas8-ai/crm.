@@ -155,9 +155,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         <div class="info-grid">
           <div class="info-card">
             <div class="info-label">Información de Contacto</div>
-            ${fullLead.mobile ? `<div class="info-item">📱 ${fullLead.mobile}</div>` : ''}
-            ${fullLead.email ? `<div class="info-item">✉️ ${fullLead.email}</div>` : ''}
-            <div class="info-item">📅 ${formatDate(fullLead.createdAt)}</div>
+            ${fullLead.mobile ? `<div class="info-item">Tel: ${fullLead.mobile}</div>` : ''}
+            ${fullLead.email ? `<div class="info-item">Email: ${fullLead.email}</div>` : ''}
+            <div class="info-item">Fecha: ${formatDate(fullLead.createdAt)}</div>
           </div>
           <div class="info-card">
             <div class="info-label">Origen</div>

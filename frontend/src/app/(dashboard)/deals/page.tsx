@@ -10,8 +10,9 @@ import {
   MoreVertical,
   GripVertical,
   DollarSign,
+  Trash2,
 } from 'lucide-react';
-import { GET_DEALS_BY_STAGE, UPDATE_DEAL } from '@/graphql/queries/deals';
+import { GET_DEALS_BY_STAGE, UPDATE_DEAL, DELETE_DEAL } from '@/graphql/queries/deals';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -55,6 +56,23 @@ export default function DealsPage() {
     refetchQueries: ['GetDealsByStage', 'GetDashboardStats'],
     onCompleted: () => refetch(),
   });
+
+  // Delete deal mutation
+  const [deleteDeal] = useMutation(DELETE_DEAL, {
+    refetchQueries: ['GetDealsByStage', 'GetDashboardStats'],
+    onCompleted: () => refetch(),
+  });
+
+  const handleDelete = (dealId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('¿Estás seguro de eliminar este deal?')) {
+      deleteDeal({
+        variables: {
+          input: { id: dealId },
+        },
+      });
+    }
+  };
 
   const activeDeals = data?.activeDeals?.nodes || [];
   const wonDeals = data?.wonDeals?.nodes || [];
@@ -226,8 +244,12 @@ export default function DealsPage() {
                               </span>
                             </div>
                           </div>
-                          <button className="text-muted-foreground hover:text-foreground">
-                            <MoreVertical size={16} />
+                          <button
+                            className="text-red-400 hover:text-red-600 p-1"
+                            onClick={(e) => handleDelete(deal.id, e)}
+                            title="Eliminar deal"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </div>
 
@@ -321,16 +343,26 @@ export default function DealsPage() {
                           {formatRelativeTime(deal.createdAt)}
                         </td>
                         <td className="table-cell">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedDeal(deal);
-                              openModal('view-deal');
-                            }}
-                          >
-                            Ver
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedDeal(deal);
+                                openModal('view-deal');
+                              }}
+                            >
+                              Ver
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={(e) => handleDelete(deal.id, e as any)}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))

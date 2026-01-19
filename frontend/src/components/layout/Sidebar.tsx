@@ -7,7 +7,6 @@ import {
   Users,
   Kanban,
   Search,
-  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -25,16 +24,10 @@ const navigation = [
   { name: 'Búsquedas', href: '/enquiries', icon: Search },
 ];
 
-const adminNavigation = [
-  { name: 'Configuración', href: '/settings', icon: Settings },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, sidebarCollapsed, setSidebarOpen, setSidebarCollapsed } = useUIStore();
-  const { user, logout, hasMinimumRole } = useAuthStore();
-
-  const isAdmin = user?.role === 'admin';
+  const { user, logout } = useAuthStore();
 
   return (
     <>
@@ -105,33 +98,6 @@ export function Sidebar() {
             );
           })}
 
-          {/* Admin section */}
-          {isAdmin && (
-            <>
-              <div className={cn('pt-4 pb-2', sidebarCollapsed && 'hidden')}>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Admin
-                </span>
-              </div>
-              {adminNavigation.map((item) => {
-                const isActive = pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={cn(
-                      'sidebar-link',
-                      isActive && 'sidebar-link-active'
-                    )}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <item.icon size={20} />
-                    {!sidebarCollapsed && <span>{item.name}</span>}
-                  </Link>
-                );
-              })}
-            </>
-          )}
         </nav>
 
         {/* User section */}
