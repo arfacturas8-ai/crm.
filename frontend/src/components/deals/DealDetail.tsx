@@ -108,7 +108,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const notesText = (fullDeal as any)?.notes || '';
 
   // Fetch lead to get property ID
-  const { data: leadData } = useQuery(GET_LEAD, {
+  const { data: leadData, refetch: refetchLead } = useQuery(GET_LEAD, {
     variables: { id: fullDeal.leadId?.toString() },
     skip: !fullDeal.leadId,
   });
@@ -117,7 +117,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const propertyId = linkedLead?.propertyId;
 
   // Fetch property if we have a propertyId
-  const { data: propertyData, loading: propertyLoading } = useQuery(GET_PROPERTY, {
+  const { data: propertyData, loading: propertyLoading, refetch: refetchProperty } = useQuery(GET_PROPERTY, {
     variables: { id: propertyId },
     skip: !propertyId,
   });
@@ -126,8 +126,13 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
 
   // Update lead mutation (for property linking)
   const [updateLead] = useMutation(UPDATE_LEAD, {
-    refetchQueries: ['GetLead'],
-    onCompleted: () => {
+    onCompleted: async () => {
+      // Refetch lead to get updated propertyId
+      const { data: updatedLeadData } = await refetchLead();
+      // If property was linked, refetch property data
+      if (updatedLeadData?.lead?.propertyId) {
+        await refetchProperty({ id: updatedLeadData.lead.propertyId });
+      }
       addNotification({
         type: 'success',
         title: 'Propiedad vinculada',
@@ -211,11 +216,15 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    // Get the base URL for absolute paths
+    const baseUrl = window.location.origin;
+
     // Build property section for print
     let propertySection = '';
     if (linkedProperty) {
-      const images = linkedProperty.propertyGallery?.slice(0, 4) || [];
+      const images = linkedProperty.propertyGallery || [];
       const mainImage = linkedProperty.featuredImage?.node?.sourceUrl;
+      const city = linkedProperty.propertyCities?.nodes?.[0]?.name || '';
 
       propertySection = `
         <div class="property-section">
@@ -229,16 +238,23 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               ${linkedProperty.propertyAddress ? `
                 <p class="property-address"><span class="icon">📍</span> ${linkedProperty.propertyAddress}</p>
               ` : ''}
+              ${city ? `
+                <p class="property-city"><span class="icon">🏙</span> ${city}</p>
+              ` : ''}
               <div class="property-features">
-                ${linkedProperty.propertyBedrooms ? `<span><span class="icon">🛏</span> ${linkedProperty.propertyBedrooms} Hab.</span>` : ''}
+                ${linkedProperty.propertyBedrooms ? `<span><span class="icon">🛏</span> ${linkedProperty.propertyBedrooms} Habitaciones</span>` : ''}
                 ${linkedProperty.propertyBathrooms ? `<span><span class="icon">🚿</span> ${linkedProperty.propertyBathrooms} Banos</span>` : ''}
               </div>
               ${linkedProperty.formattedPrice || linkedProperty.propertyPrice ? `
                 <p class="property-price">${linkedProperty.formattedPrice || formatCurrency(linkedProperty.propertyPrice)}</p>
               ` : ''}
+              ${linkedProperty.uri ? `
+                <p class="property-link"><a href="${linkedProperty.uri}" target="_blank">Ver propiedad en sitio web</a></p>
+              ` : ''}
             </div>
           </div>
           ${images.length > 0 ? `
+            <h4 class="gallery-title">Galeria de Fotos (${images.length} imagenes)</h4>
             <div class="property-gallery">
               ${images.map((img: any) => `
                 <img src="${img.sourceUrl}" alt="Galeria" class="gallery-image" />
@@ -288,21 +304,27 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           .property-info { flex: 1; }
           .property-info h4 { margin: 0 0 10px 0; color: #333; }
           .property-address { color: #666; margin: 5px 0; }
-          .property-features { display: flex; gap: 15px; margin: 10px 0; color: #666; }
+          .property-city { color: #666; margin: 5px 0; }
+          .property-features { display: flex; gap: 15px; margin: 10px 0; color: #666; flex-wrap: wrap; }
           .property-price { color: #8B4513; font-size: 18px; font-weight: bold; margin-top: 10px; }
-          .property-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
-          .gallery-image { width: 100%; height: 80px; object-fit: cover; border-radius: 4px; }
+          .property-link { margin-top: 10px; }
+          .property-link a { color: #8B4513; text-decoration: underline; }
+          .gallery-title { color: #8B4513; font-size: 14px; margin: 20px 0 10px 0; }
+          .property-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+          .gallery-image { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; }
           .icon { margin-right: 5px; }
           .footer { margin-top: 40px; text-align: center; color: #8B4513; font-size: 12px; }
           @media print {
             body { padding: 20px; }
             .property-main-image { width: 180px; height: 120px; }
+            .property-gallery { grid-template-columns: repeat(3, 1fr); }
+            .gallery-image { height: 100px; }
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <img src="/images/habita-logo.jpg" class="logo" alt="HabitaCR" onerror="this.style.display='none'" />
+          <img src="${baseUrl}/images/habita-logo.jpg" class="logo" alt="HabitaCR" onerror="this.style.display='none'" />
           <div>
             <div class="title">HabitaCR - Ficha de Deal</div>
             <div class="subtitle">Generado el ${new Date().toLocaleDateString('es-CR', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
