@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils';
-import { type Deal } from '@/types';
+import { type Deal, type DealStage } from '@/types';
 import { useUIStore } from '@/store/ui-store';
 
 // Query to get property by ID
@@ -90,7 +90,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(deal.title || '');
-  const [editStage, setEditStage] = useState(deal.stage || 'active');
+  const [editStage, setEditStage] = useState<DealStage>(deal.stage || 'active');
   const [editValue, setEditValue] = useState(deal.value?.toString() || '');
   const [newNote, setNewNote] = useState('');
 
@@ -710,7 +710,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                 <select
                   value={editStage}
-                  onChange={(e) => setEditStage(e.target.value)}
+                  onChange={(e) => setEditStage(e.target.value as DealStage)}
                   className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent"
                 >
                   {STAGE_OPTIONS.map((opt) => (

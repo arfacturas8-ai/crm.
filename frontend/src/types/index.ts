@@ -36,8 +36,17 @@ export interface Lead {
   updatedAt: string;
 }
 
-// Deal Types - matches server schema
-export type DealStage = 'active' | 'won' | 'lost';
+// Deal Types - matches server schema (includes all possible server values)
+export type DealStage =
+  | 'active'
+  | 'won'
+  | 'lost'
+  | 'initial_contact'
+  | 'qualified'
+  | 'proposal'
+  | 'negotiation'
+  | 'closed_won'
+  | 'closed_lost';
 
 export interface Deal {
   id: string;
@@ -156,4 +165,10 @@ export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
   active: 'Activo',
   won: 'Ganado',
   lost: 'Perdido',
+  initial_contact: 'Contacto Inicial',
+  qualified: 'Calificado',
+  proposal: 'Propuesta',
+  negotiation: 'Negociacion',
+  closed_won: 'Ganado',
+  closed_lost: 'Perdido',
 };

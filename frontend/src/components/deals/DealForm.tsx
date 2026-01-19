@@ -52,6 +52,13 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     label: `${lead.name} - ${lead.mobile || lead.email}`,
   }));
 
+  // Normalize stage to form values (server might send other stages)
+  const normalizeStage = (stage?: string): 'active' | 'won' | 'lost' => {
+    if (stage === 'won' || stage === 'closed_won') return 'won';
+    if (stage === 'lost' || stage === 'closed_lost') return 'lost';
+    return 'active';
+  };
+
   const {
     register,
     handleSubmit,
@@ -63,7 +70,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     defaultValues: {
       title: deal?.title || '',
       leadId: deal?.leadId?.toString() || leadId || '',
-      stage: deal?.stage || 'active',
+      stage: normalizeStage(deal?.stage),
       value: deal?.value?.toString() || '',
     },
   });
