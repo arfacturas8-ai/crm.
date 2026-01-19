@@ -431,9 +431,17 @@ export default function DealsPage() {
         />
       </Modal>
 
-      {/* View Deal Modal */}
-      <Modal id="view-deal" title="Detalles del Deal" size="xl">
-        {selectedDeal && <DealDetail deal={selectedDeal} />}
+      {/* View Deal Modal - Full screen for better UX */}
+      <Modal id="view-deal" title="" size="full">
+        {selectedDeal && (
+          <DealDetail
+            deal={selectedDeal}
+            onClose={() => {
+              closeModal();
+              refetch();
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

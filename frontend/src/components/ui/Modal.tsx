@@ -18,7 +18,7 @@ const sizeClasses = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
-  full: 'max-w-4xl',
+  full: 'max-w-5xl md:max-w-6xl',
 };
 
 export function Modal({ id, title, children, size = 'md', showCloseButton = true }: ModalProps) {
@@ -70,21 +70,23 @@ export function Modal({ id, title, children, size = 'md', showCloseButton = true
           sizeClasses[size]
         )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {showCloseButton && (
-            <button
-              onClick={closeModal}
-              className="btn btn-ghost btn-icon"
-            >
-              <X size={20} />
-            </button>
-          )}
-        </div>
+        {/* Header - only show if title is provided */}
+        {title && (
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">{title}</h2>
+            {showCloseButton && (
+              <button
+                onClick={closeModal}
+                className="btn btn-ghost btn-icon"
+              >
+                <X size={20} />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className={cn('flex-1 overflow-y-auto', title ? 'p-4' : 'p-0')}>
           {children}
         </div>
       </div>
