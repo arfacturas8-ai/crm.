@@ -39,32 +39,10 @@ export const GET_DEALS = gql`
   }
 `;
 
-// Get deals by stage for kanban board
+// Get all deals for kanban board (filter by stage on client)
 export const GET_DEALS_BY_STAGE = gql`
   query GetDealsByStage {
-    activeDeals: deals(stage: "active", first: 100) {
-      nodes {
-        id
-        title
-        leadId
-        stage
-        value
-        createdAt
-      }
-      totalCount
-    }
-    wonDeals: deals(stage: "won", first: 100) {
-      nodes {
-        id
-        title
-        leadId
-        stage
-        value
-        createdAt
-      }
-      totalCount
-    }
-    lostDeals: deals(stage: "lost", first: 100) {
+    deals(first: 100) {
       nodes {
         id
         title

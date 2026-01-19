@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import {
   Plus,
   Search,
   Grid3X3,
   List,
-  MoreVertical,
   GripVertical,
   DollarSign,
   Trash2,
@@ -25,18 +24,39 @@ import { DealForm } from '@/components/deals/DealForm';
 import { DealDetail } from '@/components/deals/DealDetail';
 
 type ViewMode = 'kanban' | 'list';
-type DealStage = 'active' | 'won' | 'lost';
 
-const COLUMNS: { id: DealStage; label: string; color: string }[] = [
-  { id: 'active', label: 'Activo', color: 'bg-yellow-500' },
+// Map server stage values to kanban columns
+const STAGE_TO_COLUMN: Record<string, string> = {
+  // Active/In Progress stages
+  'initial_contact': 'active',
+  'qualified': 'active',
+  'proposal': 'active',
+  'negotiation': 'active',
+  'active': 'active',
+  // Won stages
+  'won': 'won',
+  'closed_won': 'won',
+  // Lost stages
+  'lost': 'lost',
+  'closed_lost': 'lost',
+};
+
+const COLUMNS = [
+  { id: 'active', label: 'En Proceso', color: 'bg-yellow-500' },
   { id: 'won', label: 'Ganado', color: 'bg-green-500' },
   { id: 'lost', label: 'Perdido', color: 'bg-red-500' },
 ];
 
 const STAGE_LABELS: Record<string, string> = {
+  initial_contact: 'Contacto Inicial',
+  qualified: 'Calificado',
+  proposal: 'Propuesta',
+  negotiation: 'Negociación',
   active: 'Activo',
   won: 'Ganado',
+  closed_won: 'Ganado',
   lost: 'Perdido',
+  closed_lost: 'Perdido',
 };
 
 export default function DealsPage() {
@@ -44,12 +64,31 @@ export default function DealsPage() {
   const [search, setSearch] = useState('');
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<DealStage | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
-  const { openModal, closeModal } = useUIStore();
+  const { openModal, closeModal, addNotification } = useUIStore();
 
-  // Fetch deals by stage
+  // Fetch all deals
   const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
+
+  // All deals from the query
+  const allDeals: Deal[] = data?.deals?.nodes || [];
+
+  // Group deals by column
+  const dealsByColumn = useMemo(() => {
+    const grouped: Record<string, Deal[]> = {
+      active: [],
+      won: [],
+      lost: [],
+    };
+
+    allDeals.forEach((deal) => {
+      const column = STAGE_TO_COLUMN[deal.stage] || 'active';
+      grouped[column].push(deal);
+    });
+
+    return grouped;
+  }, [allDeals]);
 
   // Update deal mutation (for moving between columns)
   const [updateDeal] = useMutation(UPDATE_DEAL, {
@@ -60,7 +99,23 @@ export default function DealsPage() {
   // Delete deal mutation
   const [deleteDeal] = useMutation(DELETE_DEAL, {
     refetchQueries: ['GetDealsByStage', 'GetDashboardStats'],
-    onCompleted: () => refetch(),
+    onCompleted: (data) => {
+      if (data?.deleteDeal?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Deal eliminado',
+          message: 'El deal se ha eliminado correctamente',
+        });
+        refetch();
+      }
+    },
+    onError: (error) => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'No se pudo eliminar el deal',
+      });
+    },
   });
 
   const handleDelete = (dealId: string, e: React.MouseEvent) => {
@@ -74,50 +129,38 @@ export default function DealsPage() {
     }
   };
 
-  const activeDeals = data?.activeDeals?.nodes || [];
-  const wonDeals = data?.wonDeals?.nodes || [];
-  const lostDeals = data?.lostDeals?.nodes || [];
-
-  const getDealsByStage = (stage: DealStage): Deal[] => {
-    switch (stage) {
-      case 'active':
-        return activeDeals;
-      case 'won':
-        return wonDeals;
-      case 'lost':
-        return lostDeals;
-      default:
-        return [];
-    }
-  };
-
   // Drag and drop handlers
   const handleDragStart = (deal: Deal) => {
     setDraggedDeal(deal);
   };
 
-  const handleDragOver = (e: React.DragEvent, stage: DealStage) => {
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
-    setDragOverColumn(stage);
+    setDragOverColumn(columnId);
   };
 
   const handleDragLeave = () => {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetStage: DealStage) => {
+  const handleDrop = (e: React.DragEvent, targetColumn: string) => {
     e.preventDefault();
     setDragOverColumn(null);
 
-    if (draggedDeal && draggedDeal.stage !== targetStage) {
-      updateDeal({
-        variables: {
-          input: {
-            id: draggedDeal.id,
-            stage: targetStage,
+    if (draggedDeal) {
+      const currentColumn = STAGE_TO_COLUMN[draggedDeal.stage] || 'active';
+      if (currentColumn !== targetColumn) {
+        // Map column back to stage value
+        const newStage = targetColumn; // active, won, or lost
+        updateDeal({
+          variables: {
+            input: {
+              id: draggedDeal.id,
+              stage: newStage,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     setDraggedDeal(null);
@@ -135,6 +178,10 @@ export default function DealsPage() {
     return deals.filter((deal) => deal.title?.toLowerCase().includes(searchLower));
   };
 
+  const getColumnDeals = (columnId: string) => {
+    return filterDeals(dealsByColumn[columnId] || []);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -142,7 +189,7 @@ export default function DealsPage() {
         <div>
           <h1 className="text-2xl font-bold">Deals</h1>
           <p className="text-muted-foreground">
-            {activeDeals.length + wonDeals.length + lostDeals.length} deals en total
+            {allDeals.length} deals en total
           </p>
         </div>
         <div className="flex gap-2">
@@ -187,7 +234,7 @@ export default function DealsPage() {
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {COLUMNS.map((column) => {
-            const deals = filterDeals(getDealsByStage(column.id));
+            const deals = getColumnDeals(column.id);
             const isDropTarget = dragOverColumn === column.id;
 
             return (
@@ -261,6 +308,9 @@ export default function DealsPage() {
                               {formatCurrency(deal.value)}
                             </p>
                           )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {STAGE_LABELS[deal.stage] || deal.stage}
+                          </p>
                         </div>
 
                         <div className="flex items-center justify-between mt-4 pt-3 border-t">
@@ -306,12 +356,9 @@ export default function DealsPage() {
                     </tr>
                   ))
                 ) : (
-                  [...activeDeals, ...wonDeals, ...lostDeals]
-                    .filter(
-                      (deal) =>
-                        !search || deal.title?.toLowerCase().includes(search.toLowerCase())
-                    )
-                    .map((deal: Deal) => (
+                  filterDeals(allDeals).map((deal: Deal) => {
+                    const column = STAGE_TO_COLUMN[deal.stage] || 'active';
+                    return (
                       <tr key={deal.id} className="table-row">
                         <td className="table-cell">
                           <div className="flex items-center gap-3">
@@ -329,9 +376,9 @@ export default function DealsPage() {
                         <td className="table-cell">
                           <Badge
                             variant={
-                              deal.stage === 'won'
+                              column === 'won'
                                 ? 'won'
-                                : deal.stage === 'lost'
+                                : column === 'lost'
                                 ? 'lost'
                                 : 'active'
                             }
@@ -365,7 +412,8 @@ export default function DealsPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
