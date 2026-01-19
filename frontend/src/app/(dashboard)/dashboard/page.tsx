@@ -21,10 +21,6 @@ const GET_DASHBOARD_STATS = gql`
     crmStats {
       totalLeads
       totalDeals
-      activeDeals
-      wonDeals
-      newLeadsThisMonth
-      conversionRate
     }
     recentLeads: leads(first: 5) {
       nodes {
@@ -48,6 +44,12 @@ const GET_DASHBOARD_STATS = gql`
         estado
         createdAt
       }
+    }
+    activeDealsCount: deals(group: "active", first: 1) {
+      totalCount
+    }
+    wonDealsCount: deals(group: "won", first: 1) {
+      totalCount
     }
   }
 `;
@@ -88,11 +90,11 @@ export default function DashboardPage() {
     fetchPolicy: 'cache-and-network',
   });
 
-  const stats = data?.crmStats || {
-    totalLeads: 0,
-    totalDeals: 0,
-    activeDeals: 0,
-    wonDeals: 0,
+  const stats = {
+    totalLeads: data?.crmStats?.totalLeads || 0,
+    totalDeals: data?.crmStats?.totalDeals || 0,
+    activeDeals: data?.activeDealsCount?.totalCount || 0,
+    wonDeals: data?.wonDealsCount?.totalCount || 0,
   };
   const recentLeads = data?.recentLeads?.nodes || [];
   const recentDeals = data?.recentDeals?.nodes || [];
