@@ -66,21 +66,7 @@ export const GET_DEAL = gql`
       stage
       value
       createdAt
-      notes {
-        id
-        content
-        authorId
-        authorName
-        createdAt
-      }
-      activities {
-        id
-        type
-        description
-        userId
-        userName
-        createdAt
-      }
+      notes
     }
   }
 `;

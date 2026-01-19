@@ -8,7 +8,6 @@ import {
   DollarSign,
   Tag,
   Printer,
-  Clock,
   Mail,
   MessageSquare,
   Phone,
@@ -67,7 +66,7 @@ interface DealDetailProps {
   onClose?: () => void;
 }
 
-type TabType = 'info' | 'property' | 'activity' | 'notes';
+type TabType = 'info' | 'property' | 'notes';
 
 const STAGE_LABELS: Record<string, string> = {
   initial_contact: 'Contacto Inicial',
@@ -105,8 +104,8 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   });
 
   const fullDeal: Deal = data?.deal || deal;
-  const notes = (fullDeal as any)?.notes || [];
-  const activities = (fullDeal as any)?.activities || [];
+  // Notes is a string field from the backend
+  const notesText = (fullDeal as any)?.notes || '';
 
   // Fetch lead to get property ID
   const { data: leadData } = useQuery(GET_LEAD, {
@@ -148,16 +147,21 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   });
 
   const handleLinkProperty = async () => {
-    if (!selectedProperty || !linkedLead) return;
+    if (!selectedProperty || !linkedLead || savingProperty) return;
     setSavingProperty(true);
-    await updateLead({
-      variables: {
-        input: {
-          id: linkedLead.id,
-          propertyId: selectedProperty.databaseId?.toString(),
+    try {
+      await updateLead({
+        variables: {
+          input: {
+            id: linkedLead.id,
+            propertyId: parseInt(selectedProperty.databaseId, 10),
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.error('Error updating lead property:', error);
+      setSavingProperty(false);
+    }
   };
 
   // Update deal mutation
@@ -347,8 +351,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const tabs = [
     { id: 'info' as TabType, label: 'Informacion', icon: User },
     { id: 'property' as TabType, label: 'Propiedad', icon: Home },
-    { id: 'activity' as TabType, label: 'Actividad', icon: Clock },
-    { id: 'notes' as TabType, label: 'Notas', icon: FileText, count: notes.length },
+    { id: 'notes' as TabType, label: 'Notas', icon: FileText },
   ];
 
   return (
@@ -438,11 +441,6 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           >
             <tab.icon size={16} />
             {tab.label}
-            {tab.count !== undefined && tab.count > 0 && (
-              <span className="bg-[#8B4513] text-white text-xs px-1.5 py-0.5 rounded-full">
-                {tab.count}
-              </span>
-            )}
           </button>
         ))}
       </div>
@@ -638,62 +636,6 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           </div>
         )}
 
-        {/* Activity Tab */}
-        {activeTab === 'activity' && (
-          <Card className="p-4 border-[#e0ccb0]">
-            <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-              Historial de Actividad
-            </h3>
-            {loading ? (
-              <div className="animate-pulse space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
-                      <div className="h-3 bg-gray-200 rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : activities.length > 0 ? (
-              <div className="space-y-4">
-                {activities.map((activity: any, idx: number) => (
-                  <div key={activity.id || idx} className="flex gap-4 pb-4 border-b border-[#e0ccb0] last:border-0">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      activity.type === 'whatsapp' ? 'bg-[#25D366]/10' :
-                      activity.type === 'email' ? 'bg-[#8B4513]/10' :
-                      activity.type === 'call' ? 'bg-blue-100' :
-                      'bg-gray-100'
-                    }`}>
-                      {activity.type === 'whatsapp' ? (
-                        <MessageSquare size={18} className="text-[#25D366]" />
-                      ) : activity.type === 'email' ? (
-                        <Mail size={18} className="text-[#8B4513]" />
-                      ) : activity.type === 'call' ? (
-                        <Phone size={18} className="text-blue-600" />
-                      ) : (
-                        <FileText size={18} className="text-gray-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-black dark:text-white">{activity.description}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {activity.userName} - {formatRelativeTime(activity.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Clock size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">No hay actividad registrada</p>
-              </div>
-            )}
-          </Card>
-        )}
-
         {/* Notes Tab */}
         {activeTab === 'notes' && (
           <div className="space-y-6">
@@ -721,18 +663,11 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
 
             <Card className="p-4 border-[#e0ccb0]">
               <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-                Notas ({notes.length})
+                Notas
               </h3>
-              {notes.length > 0 ? (
-                <div className="space-y-3">
-                  {notes.map((note: any, idx: number) => (
-                    <div key={note.id || idx} className="p-4 bg-[#faf5f0] dark:bg-[#111] rounded-lg">
-                      <p className="text-black dark:text-white whitespace-pre-wrap">{note.content}</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        {note.authorName} - {formatRelativeTime(note.createdAt)}
-                      </p>
-                    </div>
-                  ))}
+              {notesText ? (
+                <div className="p-4 bg-[#faf5f0] dark:bg-[#111] rounded-lg">
+                  <p className="text-black dark:text-white whitespace-pre-wrap">{notesText}</p>
                 </div>
               ) : (
                 <div className="text-center py-8">

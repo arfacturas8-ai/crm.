@@ -63,21 +63,7 @@ export const GET_LEAD = gql`
       propertyId
       createdAt
       updatedAt
-      notes {
-        id
-        content
-        authorId
-        authorName
-        createdAt
-      }
-      activities {
-        id
-        type
-        description
-        userId
-        userName
-        createdAt
-      }
+      notes
     }
   }
 `;
