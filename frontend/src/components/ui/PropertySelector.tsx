@@ -29,12 +29,15 @@ const GET_PROPERTIES = gql`
             sourceUrl
           }
         }
-        propertyDetails {
-          propertyPrice
-          propertyBedrooms
-          propertyBathrooms
-          propertyAddress
-          propertyCity
+        propertyPrice
+        propertyBedrooms
+        propertyBathrooms
+        propertyAddress
+        formattedPrice
+        propertyCities {
+          nodes {
+            name
+          }
         }
       }
     }
@@ -51,12 +54,13 @@ interface Property {
       sourceUrl?: string;
     };
   };
-  propertyDetails?: {
-    propertyPrice?: number;
-    propertyBedrooms?: number;
-    propertyBathrooms?: number;
-    propertyAddress?: string;
-    propertyCity?: string;
+  propertyPrice?: string;
+  propertyBedrooms?: string;
+  propertyBathrooms?: string;
+  propertyAddress?: string;
+  formattedPrice?: string;
+  propertyCities?: {
+    nodes?: { name: string }[];
   };
 }
 
@@ -87,6 +91,10 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
     onSelect(null);
   };
 
+  const getCity = (property: Property) => {
+    return property.propertyCities?.nodes?.[0]?.name || null;
+  };
+
   // If a property is selected, show it
   if (selectedProperty && !isOpen) {
     return (
@@ -105,28 +113,28 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
           )}
           <div className="flex-1 min-w-0">
             <p className="font-medium text-black truncate">{selectedProperty.title}</p>
-            {selectedProperty.propertyDetails?.propertyAddress && (
+            {selectedProperty.propertyAddress && (
               <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                 <MapPin size={12} />
-                {selectedProperty.propertyDetails.propertyAddress}
+                {selectedProperty.propertyAddress}
               </p>
             )}
             <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-              {selectedProperty.propertyDetails?.propertyBedrooms && (
+              {selectedProperty.propertyBedrooms && (
                 <span className="flex items-center gap-1">
                   <Bed size={12} />
-                  {selectedProperty.propertyDetails.propertyBedrooms}
+                  {selectedProperty.propertyBedrooms}
                 </span>
               )}
-              {selectedProperty.propertyDetails?.propertyBathrooms && (
+              {selectedProperty.propertyBathrooms && (
                 <span className="flex items-center gap-1">
                   <Bath size={12} />
-                  {selectedProperty.propertyDetails.propertyBathrooms}
+                  {selectedProperty.propertyBathrooms}
                 </span>
               )}
-              {selectedProperty.propertyDetails?.propertyPrice && (
+              {selectedProperty.formattedPrice && (
                 <span className="font-medium text-[#8B4513]">
-                  {formatCurrency(selectedProperty.propertyDetails.propertyPrice, 'USD')}
+                  {selectedProperty.formattedPrice}
                 </span>
               )}
             </div>
@@ -212,21 +220,21 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-black truncate">{property.title}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                      {property.propertyDetails?.propertyCity && (
+                      {getCity(property) && (
                         <span className="flex items-center gap-1">
                           <MapPin size={10} />
-                          {property.propertyDetails.propertyCity}
+                          {getCity(property)}
                         </span>
                       )}
-                      {property.propertyDetails?.propertyBedrooms && (
+                      {property.propertyBedrooms && (
                         <span className="flex items-center gap-1">
                           <Bed size={10} />
-                          {property.propertyDetails.propertyBedrooms}
+                          {property.propertyBedrooms}
                         </span>
                       )}
-                      {property.propertyDetails?.propertyPrice && (
+                      {property.formattedPrice && (
                         <span className="text-[#8B4513] font-medium">
-                          {formatCurrency(property.propertyDetails.propertyPrice, 'USD')}
+                          {property.formattedPrice}
                         </span>
                       )}
                     </div>
