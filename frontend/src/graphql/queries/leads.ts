@@ -45,11 +45,6 @@ export const GET_LEADS = gql`
         updatedAt
       }
       totalCount
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        total
-      }
     }
   }
 `;

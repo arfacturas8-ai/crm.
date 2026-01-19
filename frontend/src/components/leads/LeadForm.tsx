@@ -62,6 +62,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   const [createLead, { loading: createLoading }] = useMutation(CREATE_LEAD, {
     refetchQueries: ['GetLeads', 'GetDashboardStats'],
+    awaitRefetchQueries: true,
     onCompleted: (data) => {
       if (data?.createLead?.lead) {
         addNotification({
@@ -89,6 +90,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   const [updateLead, { loading: updateLoading }] = useMutation(UPDATE_LEAD, {
     refetchQueries: ['GetLeads', 'GetLead', 'GetDashboardStats'],
+    awaitRefetchQueries: true,
     onCompleted: (data) => {
       if (data?.updateLead?.lead) {
         addNotification({

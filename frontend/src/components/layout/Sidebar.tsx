@@ -48,10 +48,11 @@ export function Sidebar() {
 
       {/* Mobile menu button */}
       <button
-        className="fixed top-4 left-4 z-50 md:hidden btn btn-ghost btn-icon bg-white shadow-md rounded-full"
+        className="fixed top-5 left-4 z-[100] md:hidden flex items-center justify-center w-12 h-12 bg-[#8B4513] text-white shadow-lg rounded-full"
         onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Menu"
       >
-        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
       {/* Sidebar */}
