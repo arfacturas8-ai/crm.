@@ -27,10 +27,6 @@ import { GET_LEAD } from '@/graphql/queries/leads';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Modal } from '@/components/ui/Modal';
-import { PropertySelector } from '@/components/ui/PropertySelector';
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils';
 import { type Deal } from '@/types';
 import { useUIStore } from '@/store/ui-store';
@@ -96,7 +92,6 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const [editTitle, setEditTitle] = useState(deal.title || '');
   const [editStage, setEditStage] = useState(deal.stage || 'active');
   const [editValue, setEditValue] = useState(deal.value?.toString() || '');
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [newNote, setNewNote] = useState('');
 
   const { addNotification } = useUIStore();
