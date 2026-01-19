@@ -105,7 +105,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   const [createDeal, { loading: createLoading }] = useMutation(CREATE_DEAL, {
     onCompleted: (data) => {
-      if (data?.createDeal?.success) {
+      if (data?.createDeal?.deal) {
         addNotification({
           type: 'success',
           title: 'Deal creado',
@@ -116,7 +116,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         addNotification({
           type: 'error',
           title: 'Error',
-          message: data?.createDeal?.message || 'No se pudo crear el deal',
+          message: 'No se pudo crear el deal',
         });
       }
     },
@@ -131,7 +131,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
     onCompleted: (data) => {
-      if (data?.updateDeal?.success) {
+      if (data?.updateDeal?.deal) {
         addNotification({
           type: 'success',
           title: 'Deal actualizado',
@@ -142,7 +142,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         addNotification({
           type: 'error',
           title: 'Error',
-          message: data?.updateDeal?.message || 'No se pudo actualizar el deal',
+          message: 'No se pudo actualizar el deal',
         });
       }
     },

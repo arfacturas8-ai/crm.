@@ -104,7 +104,7 @@ export const CREATE_LEAD = gql`
         updatedAt
       }
       success
-      message
+      clientMutationId
     }
   }
 `;
@@ -126,7 +126,7 @@ export const UPDATE_LEAD = gql`
         updatedAt
       }
       success
-      message
+      clientMutationId
     }
   }
 `;
@@ -136,7 +136,7 @@ export const DELETE_LEAD = gql`
   mutation DeleteLead($input: DeleteLeadInput!) {
     deleteLead(input: $input) {
       success
-      message
+      clientMutationId
     }
   }
 `;

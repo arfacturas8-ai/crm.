@@ -62,7 +62,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   const [createLead, { loading: createLoading }] = useMutation(CREATE_LEAD, {
     onCompleted: (data) => {
-      if (data?.createLead?.success) {
+      if (data?.createLead?.lead) {
         addNotification({
           type: 'success',
           title: 'Lead creado',
@@ -73,7 +73,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
         addNotification({
           type: 'error',
           title: 'Error',
-          message: data?.createLead?.message || 'No se pudo crear el lead',
+          message: 'No se pudo crear el lead',
         });
       }
     },
@@ -88,7 +88,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   const [updateLead, { loading: updateLoading }] = useMutation(UPDATE_LEAD, {
     onCompleted: (data) => {
-      if (data?.updateLead?.success) {
+      if (data?.updateLead?.lead) {
         addNotification({
           type: 'success',
           title: 'Lead actualizado',
@@ -99,7 +99,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
         addNotification({
           type: 'error',
           title: 'Error',
-          message: data?.updateLead?.message || 'No se pudo actualizar el lead',
+          message: 'No se pudo actualizar el lead',
         });
       }
     },

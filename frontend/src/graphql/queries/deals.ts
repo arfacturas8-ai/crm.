@@ -192,7 +192,7 @@ export const CREATE_DEAL = gql`
         updatedAt
       }
       success
-      message
+      clientMutationId
     }
   }
 `;
@@ -221,7 +221,7 @@ export const UPDATE_DEAL = gql`
         updatedAt
       }
       success
-      message
+      clientMutationId
     }
   }
 `;
@@ -231,7 +231,7 @@ export const DELETE_DEAL = gql`
   mutation DeleteDeal($input: DeleteDealInput!) {
     deleteDeal(input: $input) {
       success
-      message
+      clientMutationId
     }
   }
 `;
