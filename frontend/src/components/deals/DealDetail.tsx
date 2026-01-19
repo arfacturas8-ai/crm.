@@ -23,10 +23,11 @@ import {
   Plus,
 } from 'lucide-react';
 import { GET_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
-import { GET_LEAD } from '@/graphql/queries/leads';
+import { GET_LEAD, UPDATE_LEAD } from '@/graphql/queries/leads';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PropertySelector } from '@/components/ui/PropertySelector';
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils';
 import { type Deal, type DealStage } from '@/types';
 import { useUIStore } from '@/store/ui-store';
@@ -93,6 +94,8 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const [editStage, setEditStage] = useState<DealStage>(deal.stage || 'active');
   const [editValue, setEditValue] = useState(deal.value?.toString() || '');
   const [newNote, setNewNote] = useState('');
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [savingProperty, setSavingProperty] = useState(false);
 
   const { addNotification } = useUIStore();
 
@@ -121,6 +124,41 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   });
 
   const linkedProperty = propertyData?.property;
+
+  // Update lead mutation (for property linking)
+  const [updateLead] = useMutation(UPDATE_LEAD, {
+    refetchQueries: ['GetLead'],
+    onCompleted: () => {
+      addNotification({
+        type: 'success',
+        title: 'Propiedad vinculada',
+        message: 'La propiedad se ha vinculado al lead correctamente',
+      });
+      setSavingProperty(false);
+      setSelectedProperty(null);
+    },
+    onError: (error) => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'No se pudo vincular la propiedad',
+      });
+      setSavingProperty(false);
+    },
+  });
+
+  const handleLinkProperty = async () => {
+    if (!selectedProperty || !linkedLead) return;
+    setSavingProperty(true);
+    await updateLead({
+      variables: {
+        input: {
+          id: linkedLead.id,
+          propertyId: selectedProperty.databaseId?.toString(),
+        },
+      },
+    });
+  };
 
   // Update deal mutation
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
@@ -563,14 +601,38 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                 )}
               </Card>
             ) : (
-              <Card className="p-6 border-[#e0ccb0] text-center">
-                <Home size={48} className="mx-auto text-[#cca87a] mb-4" />
-                <h3 className="font-medium text-black dark:text-white mb-2">
-                  No hay propiedad vinculada
-                </h3>
-                <p className="text-gray-500 text-sm mb-4">
-                  Para vincular una propiedad, edita el lead asociado
-                </p>
+              <Card className="p-6 border-[#e0ccb0]">
+                <div className="text-center mb-6">
+                  <Home size={48} className="mx-auto text-[#cca87a] mb-4" />
+                  <h3 className="font-medium text-black dark:text-white mb-2">
+                    No hay propiedad vinculada
+                  </h3>
+                  <p className="text-gray-500 text-sm">
+                    Busca y selecciona una propiedad para vincular a este deal
+                  </p>
+                </div>
+
+                {linkedLead ? (
+                  <div className="space-y-4">
+                    <PropertySelector
+                      selectedProperty={selectedProperty}
+                      onSelect={setSelectedProperty}
+                    />
+                    {selectedProperty && (
+                      <Button
+                        onClick={handleLinkProperty}
+                        disabled={savingProperty}
+                        className="w-full bg-[#8B4513] hover:bg-[#6b350f] text-white"
+                      >
+                        {savingProperty ? 'Vinculando...' : 'Vincular Propiedad'}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 text-sm">
+                    Lead no encontrado (ID: {fullDeal.leadId})
+                  </p>
+                )}
               </Card>
             )}
           </div>

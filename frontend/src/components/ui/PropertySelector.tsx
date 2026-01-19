@@ -78,7 +78,7 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
   const shouldSearch = isOpen || search.length > 0;
 
   const { data, loading, error } = useQuery(GET_PROPERTIES, {
-    variables: { search: search || null, first: 20 },
+    variables: { search: search || null, first: 500 },
     skip: !shouldSearch,
   });
 
