@@ -6,29 +6,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CREATE_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
 import { GET_LEADS } from '@/graphql/queries/leads';
-import { Input, Textarea } from '@/components/ui/Input';
+import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useUIStore } from '@/store/ui-store';
-import {
-  DEAL_BUSCA_LABELS,
-  DEAL_ESTADO_LABELS,
-  DEAL_CALIFICACION_LABELS,
-  DEAL_PROXIMO_PASO_LABELS,
-  type Deal,
-} from '@/types';
+import { type Deal } from '@/types';
 
+// Schema matching server: title, leadId, stage, value
 const dealSchema = z.object({
+  title: z.string().min(1, 'Título requerido'),
   leadId: z.string().min(1, 'Lead requerido'),
-  busca: z.enum(['comprar', 'alquilar', 'vender']),
-  propiedad: z.string().optional(),
-  estado: z.enum(['contactado', 'no_contactado']),
-  detalles: z.string().optional(),
-  fecha1: z.string().optional(),
-  fecha2: z.string().optional(),
-  calificacion: z.enum(['potencial', 'mas_seguimiento', 'no_potencial']).optional(),
-  proximoPaso: z.enum(['mas_opciones', 'opcion_compra', 'financiamiento', 'compro', 'alquilo']).optional(),
-  group: z.enum(['active', 'won', 'lost']).optional(),
+  stage: z.enum(['active', 'won', 'lost']),
+  value: z.string().optional(),
 });
 
 type DealFormData = z.infer<typeof dealSchema>;
@@ -39,30 +28,10 @@ interface DealFormProps {
   onSuccess: () => void;
 }
 
-const BUSCA_OPTIONS = Object.entries(DEAL_BUSCA_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const ESTADO_OPTIONS = Object.entries(DEAL_ESTADO_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const CALIFICACION_OPTIONS = Object.entries(DEAL_CALIFICACION_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const PROXIMO_PASO_OPTIONS = Object.entries(DEAL_PROXIMO_PASO_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const GROUP_OPTIONS = [
-  { value: 'active', label: 'Amarillo: Dar seguimiento' },
-  { value: 'won', label: 'Verde: Cliente potencial' },
-  { value: 'lost', label: 'Rojo: Descartado' },
+const STAGE_OPTIONS = [
+  { value: 'active', label: 'Activo' },
+  { value: 'won', label: 'Ganado' },
+  { value: 'lost', label: 'Perdido' },
 ];
 
 export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
@@ -83,28 +52,19 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
     defaultValues: {
+      title: deal?.title || '',
       leadId: deal?.leadId?.toString() || leadId || '',
-      busca: deal?.busca || 'comprar',
-      propiedad: deal?.propiedad || '',
-      estado: deal?.estado || 'no_contactado',
-      detalles: deal?.detalles || '',
-      fecha1: deal?.fecha1 || '',
-      fecha2: deal?.fecha2 || '',
-      calificacion: deal?.calificacion,
-      proximoPaso: deal?.proximoPaso,
-      group: deal?.group || 'active',
+      stage: deal?.stage || 'active',
+      value: deal?.value?.toString() || '',
     },
   });
 
-  const selectedLeadId = watch('leadId');
-
   const [createDeal, { loading: createLoading }] = useMutation(CREATE_DEAL, {
-    refetchQueries: ['GetDeals', 'GetDealsByGroup', 'GetDashboardStats'],
+    refetchQueries: ['GetDeals', 'GetDealsByStage', 'GetDashboardStats'],
     onCompleted: (data) => {
       if (data?.createDeal?.deal) {
         addNotification({
@@ -131,7 +91,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   });
 
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
-    refetchQueries: ['GetDeals', 'GetDeal', 'GetDealsByGroup', 'GetDashboardStats'],
+    refetchQueries: ['GetDeals', 'GetDeal', 'GetDealsByStage', 'GetDashboardStats'],
     onCompleted: (data) => {
       if (data?.updateDeal?.deal) {
         addNotification({
@@ -160,23 +120,14 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const loading = createLoading || updateLoading;
 
   const onSubmit = (data: DealFormData) => {
-    // Find the selected lead to get contact info
-    const selectedLead = leads.find((l: any) => l.id === data.leadId);
-
     if (isEditing) {
       updateDeal({
         variables: {
           input: {
             id: deal.id,
-            group: data.group,
-            busca: data.busca,
-            estado: data.estado,
-            calificacion: data.calificacion || undefined,
-            proximoPaso: data.proximoPaso || undefined,
-            propiedad: data.propiedad,
-            detalles: data.detalles,
-            fecha1: data.fecha1 || undefined,
-            fecha2: data.fecha2 || undefined,
+            title: data.title,
+            stage: data.stage,
+            value: data.value ? parseFloat(data.value) : undefined,
           },
         },
       });
@@ -184,17 +135,10 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
       createDeal({
         variables: {
           input: {
+            title: data.title,
             leadId: parseInt(data.leadId),
-            leadName: selectedLead?.name || '',
-            leadEmail: selectedLead?.email || '',
-            leadMobile: selectedLead?.mobile || '',
-            group: data.group || 'active',
-            busca: data.busca,
-            estado: data.estado,
-            calificacion: data.calificacion || undefined,
-            proximoPaso: data.proximoPaso || undefined,
-            propiedad: data.propiedad,
-            detalles: data.detalles,
+            stage: data.stage,
+            value: data.value ? parseFloat(data.value) : undefined,
           },
         },
       });
@@ -203,6 +147,14 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Title */}
+      <Input
+        label="Título del Deal *"
+        placeholder="Ej: Compra casa en Grecia..."
+        error={errors.title?.message}
+        {...register('title')}
+      />
+
       {/* Lead Selection */}
       <Select
         label="Lead *"
@@ -212,81 +164,23 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         {...register('leadId')}
       />
 
-      {/* Basic Info */}
+      {/* Stage and Value */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
-          label="¿Qué busca? *"
-          options={BUSCA_OPTIONS}
-          error={errors.busca?.message}
-          {...register('busca')}
+          label="Etapa *"
+          options={STAGE_OPTIONS}
+          error={errors.stage?.message}
+          {...register('stage')}
         />
 
         <Input
-          label="Propiedad de interés"
-          placeholder="Descripción de la propiedad..."
-          error={errors.propiedad?.message}
-          {...register('propiedad')}
-        />
-
-        <Select
-          label="Estado *"
-          options={ESTADO_OPTIONS}
-          error={errors.estado?.message}
-          {...register('estado')}
-        />
-
-        {isEditing && (
-          <Select
-            label="Grupo"
-            options={GROUP_OPTIONS}
-            error={errors.group?.message}
-            {...register('group')}
-          />
-        )}
-      </div>
-
-      {/* Dates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Fecha 1"
-          type="date"
-          error={errors.fecha1?.message}
-          {...register('fecha1')}
-        />
-
-        <Input
-          label="Fecha 2"
-          type="date"
-          error={errors.fecha2?.message}
-          {...register('fecha2')}
+          label="Valor (₡)"
+          type="number"
+          placeholder="0"
+          error={errors.value?.message}
+          {...register('value')}
         />
       </div>
-
-      {/* Follow-up & Qualification */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select
-          label="Calificación"
-          options={[{ value: '', label: 'Seleccionar...' }, ...CALIFICACION_OPTIONS]}
-          error={errors.calificacion?.message}
-          {...register('calificacion')}
-        />
-
-        <Select
-          label="Próximo paso"
-          options={[{ value: '', label: 'Seleccionar...' }, ...PROXIMO_PASO_OPTIONS]}
-          error={errors.proximoPaso?.message}
-          {...register('proximoPaso')}
-        />
-      </div>
-
-      {/* Details */}
-      <Textarea
-        label="Detalles adicionales"
-        placeholder="Notas sobre el deal..."
-        rows={4}
-        error={errors.detalles?.message}
-        {...register('detalles')}
-      />
 
       {/* Submit */}
       <div className="flex justify-end gap-3 pt-4 border-t">

@@ -36,20 +36,12 @@ const GET_DASHBOARD_STATS = gql`
     recentDeals: deals(first: 5) {
       nodes {
         id
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        estado
+        title
+        leadId
+        stage
+        value
         createdAt
       }
-    }
-    activeDealsCount: deals(group: "active", first: 1) {
-      totalCount
-    }
-    wonDealsCount: deals(group: "won", first: 1) {
-      totalCount
     }
   }
 `;
@@ -93,8 +85,6 @@ export default function DashboardPage() {
   const stats = {
     totalLeads: data?.crmStats?.totalLeads || 0,
     totalDeals: data?.crmStats?.totalDeals || 0,
-    activeDeals: data?.activeDealsCount?.totalCount || 0,
-    wonDeals: data?.wonDealsCount?.totalCount || 0,
   };
   const recentLeads = data?.recentLeads?.nodes || [];
   const recentDeals = data?.recentDeals?.nodes || [];
@@ -110,20 +100,20 @@ export default function DashboardPage() {
           href="/leads"
         />
         <StatCard
-          title="Deals Activos"
-          value={loading ? '...' : stats.activeDeals}
+          title="Total Deals"
+          value={loading ? '...' : stats.totalDeals}
           icon={Kanban}
           href="/deals"
         />
         <StatCard
-          title="Clientes Potenciales"
-          value={loading ? '...' : stats.wonDeals}
+          title="Leads Este Mes"
+          value={loading ? '...' : stats.totalLeads}
           icon={Users}
-          href="/deals"
+          href="/leads"
         />
         <StatCard
-          title="Total Deals"
-          value={loading ? '...' : stats.totalDeals}
+          title="Conversiones"
+          value={loading ? '...' : '0%'}
           icon={Search}
           href="/deals"
         />
@@ -249,26 +239,14 @@ export default function DashboardPage() {
                         <Kanban className="w-5 h-5 text-[#8B4513]" />
                       </div>
                       <div>
-                        <p className="font-medium text-black dark:text-white">{deal.leadName}</p>
+                        <p className="font-medium text-black dark:text-white">{deal.title}</p>
                         <p className="text-sm text-gray-500 capitalize">
-                          {deal.busca || 'Sin especificar'}
+                          {deal.stage || 'Sin etapa'}
                         </p>
                       </div>
                     </div>
-                    <Badge
-                      variant={
-                        deal.group === 'won'
-                          ? 'won'
-                          : deal.group === 'lost'
-                          ? 'lost'
-                          : 'active'
-                      }
-                    >
-                      {deal.group === 'active'
-                        ? 'Seguimiento'
-                        : deal.group === 'won'
-                        ? 'Potencial'
-                        : 'Descartado'}
+                    <Badge variant="active">
+                      {deal.stage === 'won' ? 'Ganado' : deal.stage === 'lost' ? 'Perdido' : 'Activo'}
                     </Badge>
                   </Link>
                 ))}

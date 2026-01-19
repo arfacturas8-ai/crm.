@@ -1,25 +1,14 @@
 import { gql } from '@apollo/client';
 
-// Fragment for deal fields
+// Fragment for deal fields - matches server schema
 export const DEAL_FRAGMENT = gql`
   fragment DealFields on Deal {
     id
+    title
     leadId
-    leadName
-    leadEmail
-    leadMobile
-    group
-    busca
-    propiedad
-    estado
-    detalles
-    fecha1
-    fecha2
-    visitaConfirmada
-    calificacion
-    proximoPaso
+    stage
+    value
     createdAt
-    updatedAt
   }
 `;
 
@@ -28,103 +17,61 @@ export const GET_DEALS = gql`
   query GetDeals(
     $first: Int
     $offset: Int
-    $group: String
-    $estado: String
+    $stage: String
     $search: String
   ) {
     deals(
       first: $first
       offset: $offset
-      group: $group
-      estado: $estado
+      stage: $stage
       search: $search
     ) {
       nodes {
         id
+        title
         leadId
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        propiedad
-        estado
-        detalles
-        fecha1
-        fecha2
-        visitaConfirmada
-        calificacion
-        proximoPaso
+        stage
+        value
         createdAt
-        updatedAt
       }
       totalCount
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        total
-      }
     }
   }
 `;
 
-// Get deals by group for kanban board
-export const GET_DEALS_BY_GROUP = gql`
-  query GetDealsByGroup {
-    activeDeals: deals(group: "active", first: 100) {
+// Get deals by stage for kanban board
+export const GET_DEALS_BY_STAGE = gql`
+  query GetDealsByStage {
+    activeDeals: deals(stage: "active", first: 100) {
       nodes {
         id
+        title
         leadId
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        propiedad
-        estado
-        detalles
-        calificacion
-        proximoPaso
+        stage
+        value
         createdAt
-        updatedAt
       }
       totalCount
     }
-    wonDeals: deals(group: "won", first: 100) {
+    wonDeals: deals(stage: "won", first: 100) {
       nodes {
         id
+        title
         leadId
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        propiedad
-        estado
-        detalles
-        calificacion
-        proximoPaso
+        stage
+        value
         createdAt
-        updatedAt
       }
       totalCount
     }
-    lostDeals: deals(group: "lost", first: 100) {
+    lostDeals: deals(stage: "lost", first: 100) {
       nodes {
         id
+        title
         leadId
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        propiedad
-        estado
-        detalles
-        calificacion
-        proximoPaso
+        stage
+        value
         createdAt
-        updatedAt
       }
       totalCount
     }
@@ -136,22 +83,11 @@ export const GET_DEAL = gql`
   query GetDeal($id: ID!) {
     deal(id: $id) {
       id
+      title
       leadId
-      leadName
-      leadEmail
-      leadMobile
-      group
-      busca
-      propiedad
-      estado
-      detalles
-      fecha1
-      fecha2
-      visitaConfirmada
-      calificacion
-      proximoPaso
+      stage
+      value
       createdAt
-      updatedAt
       notes {
         id
         content
@@ -177,19 +113,11 @@ export const CREATE_DEAL = gql`
     createDeal(input: $input) {
       deal {
         id
+        title
         leadId
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        propiedad
-        estado
-        detalles
-        calificacion
-        proximoPaso
+        stage
+        value
         createdAt
-        updatedAt
       }
       success
       clientMutationId
@@ -203,22 +131,11 @@ export const UPDATE_DEAL = gql`
     updateDeal(input: $input) {
       deal {
         id
+        title
         leadId
-        leadName
-        leadEmail
-        leadMobile
-        group
-        busca
-        propiedad
-        estado
-        detalles
-        fecha1
-        fecha2
-        visitaConfirmada
-        calificacion
-        proximoPaso
+        stage
+        value
         createdAt
-        updatedAt
       }
       success
       clientMutationId

@@ -1,60 +1,39 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import {
-  User,
-  Mail,
-  Phone,
-  MessageSquare,
   Calendar,
+  DollarSign,
   Tag,
-  CheckCircle,
-  Clock,
-  Target,
-  ArrowRight,
   Printer,
-  Home,
+  Clock,
+  Mail,
+  MessageSquare,
 } from 'lucide-react';
-import { GET_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
+import { GET_DEAL } from '@/graphql/queries/deals';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import {
-  formatDate,
-  formatRelativeTime,
-  getWhatsAppLink,
-  formatPhoneDisplay,
-} from '@/lib/utils';
-import {
-  DEAL_GROUP_LABELS,
-  DEAL_BUSCA_LABELS,
-  DEAL_ESTADO_LABELS,
-  DEAL_CALIFICACION_LABELS,
-  DEAL_PROXIMO_PASO_LABELS,
-  type Deal,
-} from '@/types';
-import { PropertySelector } from '@/components/ui/PropertySelector';
+import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils';
+import { type Deal } from '@/types';
 
 interface DealDetailProps {
   deal: Deal;
 }
 
-export function DealDetail({ deal }: DealDetailProps) {
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
-  const [savingProperty, setSavingProperty] = useState(false);
+const STAGE_LABELS: Record<string, string> = {
+  active: 'Activo',
+  won: 'Ganado',
+  lost: 'Perdido',
+};
 
+export function DealDetail({ deal }: DealDetailProps) {
   // Fetch full deal details
-  const { data, loading, refetch } = useQuery(GET_DEAL, {
+  const { data, loading } = useQuery(GET_DEAL, {
     variables: { id: deal.id },
   });
 
-  const [updateDeal] = useMutation(UPDATE_DEAL, {
-    refetchQueries: ['GetDeals', 'GetDeal', 'GetDashboardStats'],
-  });
-
   const fullDeal: Deal = data?.deal || deal;
-  const lead = (fullDeal as any)?.lead;
   const notes = (fullDeal as any)?.notes || [];
   const activities = (fullDeal as any)?.activities || [];
 
@@ -62,20 +41,11 @@ export function DealDetail({ deal }: DealDetailProps) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const propertyInfo = selectedProperty ? `
-      <div style="margin-top: 20px; padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px;">
-        <h3 style="color: #8B4513; margin: 0 0 10px 0; font-size: 14px;">Propiedad Vinculada</h3>
-        <p style="margin: 5px 0;"><strong>${selectedProperty.title}</strong></p>
-        ${selectedProperty.propertyDetails?.propertyAddress ? `<p style="margin: 5px 0; color: #666;">${selectedProperty.propertyDetails.propertyAddress}</p>` : ''}
-        ${selectedProperty.propertyDetails?.propertyPrice ? `<p style="margin: 5px 0; color: #8B4513; font-weight: bold;">$${selectedProperty.propertyDetails.propertyPrice.toLocaleString()}</p>` : ''}
-      </div>
-    ` : '';
-
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Deal - ${fullDeal.leadName}</title>
+        <title>Deal - ${fullDeal.title}</title>
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
           .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
@@ -89,7 +59,7 @@ export function DealDetail({ deal }: DealDetailProps) {
           .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; background: #f0e6d8; color: #8B4513; }
           .badge-won { background: #d1fae5; color: #065f46; }
           .badge-lost { background: #fee2e2; color: #991b1b; }
-          .badge-active { background: #e0f2fe; color: #0369a1; }
+          .badge-active { background: #fef3c7; color: #92400e; }
           .footer { margin-top: 40px; text-align: center; color: #8B4513; font-size: 12px; }
           @media print { body { padding: 20px; } }
         </style>
@@ -105,38 +75,25 @@ export function DealDetail({ deal }: DealDetailProps) {
 
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
           <div style="width: 60px; height: 60px; background: #8B4513; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-            <span style="color: white; font-size: 24px; font-weight: bold;">${fullDeal.leadName?.charAt(0).toUpperCase()}</span>
+            <span style="color: white; font-size: 24px; font-weight: bold;">${fullDeal.title?.charAt(0).toUpperCase() || 'D'}</span>
           </div>
           <div>
-            <h2 style="margin: 0; color: #333;">${fullDeal.leadName}</h2>
-            <span class="badge badge-${fullDeal.group}">${DEAL_GROUP_LABELS[fullDeal.group]}</span>
-            <span class="badge" style="margin-left: 8px;">${DEAL_BUSCA_LABELS[fullDeal.busca] || fullDeal.busca}</span>
+            <h2 style="margin: 0; color: #333;">${fullDeal.title}</h2>
+            <span class="badge badge-${fullDeal.stage}">${STAGE_LABELS[fullDeal.stage] || fullDeal.stage}</span>
           </div>
         </div>
 
         <div class="info-grid">
           <div class="info-card">
-            <div class="info-label">Información de Contacto</div>
-            ${fullDeal.leadMobile ? `<div class="info-item">📱 ${fullDeal.leadMobile}</div>` : ''}
-            ${fullDeal.leadEmail ? `<div class="info-item">✉️ ${fullDeal.leadEmail}</div>` : ''}
-            <div class="info-item">📅 ${formatDate(fullDeal.createdAt)}</div>
+            <div class="info-label">Información del Deal</div>
+            <div class="info-item">📅 Creado: ${formatDate(fullDeal.createdAt)}</div>
+            ${fullDeal.value ? `<div class="info-item">💰 Valor: ${formatCurrency(fullDeal.value)}</div>` : ''}
           </div>
           <div class="info-card">
-            <div class="info-label">Estado del Deal</div>
-            <div class="info-item">${DEAL_ESTADO_LABELS[fullDeal.estado] || fullDeal.estado}</div>
-            ${fullDeal.calificacion ? `<div class="info-item">Calificación: ${DEAL_CALIFICACION_LABELS[fullDeal.calificacion]}</div>` : ''}
-            ${fullDeal.proximoPaso ? `<div class="info-item">Próximo paso: ${DEAL_PROXIMO_PASO_LABELS[fullDeal.proximoPaso]}</div>` : ''}
+            <div class="info-label">Estado</div>
+            <div class="info-item">${STAGE_LABELS[fullDeal.stage] || fullDeal.stage}</div>
           </div>
         </div>
-
-        ${fullDeal.detalles ? `
-          <div class="info-card" style="margin-top: 20px;">
-            <div class="info-label">Detalles</div>
-            <p style="margin: 0; white-space: pre-wrap;">${fullDeal.detalles}</p>
-          </div>
-        ` : ''}
-
-        ${propertyInfo}
 
         <div class="footer">
           <p>HabitaCR - CRM Inmobiliario</p>
@@ -156,25 +113,22 @@ export function DealDetail({ deal }: DealDetailProps) {
         <div className="flex items-start gap-4">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-primary font-bold text-2xl">
-              {fullDeal.leadName?.charAt(0).toUpperCase()}
+              {fullDeal.title?.charAt(0).toUpperCase() || 'D'}
             </span>
           </div>
           <div>
-            <h2 className="text-xl font-semibold">{fullDeal.leadName}</h2>
+            <h2 className="text-xl font-semibold">{fullDeal.title}</h2>
             <div className="flex items-center gap-2 mt-1">
               <Badge
                 variant={
-                  fullDeal.group === 'won'
+                  fullDeal.stage === 'won'
                     ? 'won'
-                    : fullDeal.group === 'lost'
+                    : fullDeal.stage === 'lost'
                     ? 'lost'
                     : 'active'
                 }
               >
-                {DEAL_GROUP_LABELS[fullDeal.group]}
-              </Badge>
-              <Badge variant="secondary" className="capitalize">
-                {DEAL_BUSCA_LABELS[fullDeal.busca] || fullDeal.busca}
+                {STAGE_LABELS[fullDeal.stage] || fullDeal.stage}
               </Badge>
             </div>
           </div>
@@ -182,31 +136,6 @@ export function DealDetail({ deal }: DealDetailProps) {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 md:ml-auto">
-          {fullDeal.leadMobile && (
-            <>
-              <a
-                href={getWhatsAppLink(fullDeal.leadMobile)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="whatsapp" leftIcon={<MessageSquare size={16} />}>
-                  WhatsApp
-                </Button>
-              </a>
-              <a href={`tel:${fullDeal.leadMobile}`}>
-                <Button variant="outline" leftIcon={<Phone size={16} />}>
-                  Llamar
-                </Button>
-              </a>
-            </>
-          )}
-          {fullDeal.leadEmail && (
-            <a href={`mailto:${fullDeal.leadEmail}`}>
-              <Button variant="outline" leftIcon={<Mail size={16} />}>
-                Email
-              </Button>
-            </a>
-          )}
           <Button variant="outline" leftIcon={<Printer size={16} />} onClick={handlePrint}>
             Imprimir
           </Button>
@@ -215,138 +144,50 @@ export function DealDetail({ deal }: DealDetailProps) {
 
       {/* Info Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Contact Info */}
+        {/* Deal Info */}
         <Card className="p-4">
           <h3 className="font-medium text-sm text-muted-foreground mb-3">
-            Información de Contacto
+            Información del Deal
           </h3>
           <div className="space-y-3">
-            {fullDeal.leadMobile && (
-              <div className="flex items-center gap-2">
-                <Phone size={16} className="text-muted-foreground" />
-                <span>{formatPhoneDisplay(fullDeal.leadMobile)}</span>
-              </div>
-            )}
-            {fullDeal.leadEmail && (
-              <div className="flex items-center gap-2">
-                <Mail size={16} className="text-muted-foreground" />
-                <span>{fullDeal.leadEmail}</span>
-              </div>
-            )}
             <div className="flex items-center gap-2">
               <Calendar size={16} className="text-muted-foreground" />
               <span>Creado: {formatDate(fullDeal.createdAt)}</span>
             </div>
+            {fullDeal.value && (
+              <div className="flex items-center gap-2">
+                <DollarSign size={16} className="text-muted-foreground" />
+                <span>Valor: {formatCurrency(fullDeal.value)}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Tag size={16} className="text-muted-foreground" />
+              <span>Lead ID: {fullDeal.leadId}</span>
+            </div>
           </div>
         </Card>
 
-        {/* Deal Status */}
+        {/* Stage */}
         <Card className="p-4">
           <h3 className="font-medium text-sm text-muted-foreground mb-3">
             Estado del Deal
           </h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={16} className="text-muted-foreground" />
-              <span>{DEAL_ESTADO_LABELS[fullDeal.estado] || fullDeal.estado}</span>
-            </div>
-            {fullDeal.calificacion && (
-              <div className="flex items-center gap-2">
-                <Target size={16} className="text-muted-foreground" />
-                <span>{DEAL_CALIFICACION_LABELS[fullDeal.calificacion]}</span>
-              </div>
-            )}
-            {fullDeal.proximoPaso && (
-              <div className="flex items-center gap-2">
-                <ArrowRight size={16} className="text-muted-foreground" />
-                <span>{DEAL_PROXIMO_PASO_LABELS[fullDeal.proximoPaso]}</span>
-              </div>
-            )}
-            {fullDeal.seguimiento && (
-              <div className="flex items-center gap-2">
-                <Clock size={16} className="text-muted-foreground" />
-                <span>
-                  Seguimiento: {fullDeal.seguimiento === 'una' ? '1 vez' : fullDeal.seguimiento === 'dos' ? '2 veces' : '3 veces'}
-                </span>
-              </div>
-            )}
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={
+                fullDeal.stage === 'won'
+                  ? 'won'
+                  : fullDeal.stage === 'lost'
+                  ? 'lost'
+                  : 'active'
+              }
+              className="text-lg px-4 py-2"
+            >
+              {STAGE_LABELS[fullDeal.stage] || fullDeal.stage}
+            </Badge>
           </div>
         </Card>
       </div>
-
-      {/* Property Selector */}
-      <Card className="p-4 border-[#e0ccb0]">
-        <h3 className="font-medium text-sm text-[#8B4513] mb-3 uppercase tracking-wide">
-          Vincular Propiedad
-        </h3>
-        <PropertySelector
-          selectedProperty={selectedProperty}
-          onSelect={setSelectedProperty}
-        />
-        {fullDeal.propiedad && !selectedProperty && (
-          <p className="text-sm text-gray-500 mt-2">Propiedad original: {fullDeal.propiedad}</p>
-        )}
-        {selectedProperty && (
-          <Button
-            className="mt-4 w-full"
-            disabled={savingProperty}
-            onClick={async () => {
-              setSavingProperty(true);
-              try {
-                await updateDeal({
-                  variables: {
-                    input: {
-                      id: deal.id,
-                      propiedad: selectedProperty.title,
-                    },
-                  },
-                });
-                refetch();
-              } catch (err) {
-                console.error('Error saving property:', err);
-              }
-              setSavingProperty(false);
-            }}
-          >
-            {savingProperty ? 'Guardando...' : 'Guardar Propiedad Vinculada'}
-          </Button>
-        )}
-      </Card>
-
-      {/* Dates */}
-      {(fullDeal.fecha1 || fullDeal.fecha2 || fullDeal.visitaConfirmada) && (
-        <Card className="p-4">
-          <h3 className="font-medium text-sm text-muted-foreground mb-3">Fechas</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {fullDeal.fecha1 && (
-              <div>
-                <p className="text-sm text-muted-foreground">Fecha 1</p>
-                <p className="font-medium">{formatDate(fullDeal.fecha1)}</p>
-              </div>
-            )}
-            {fullDeal.fecha2 && (
-              <div>
-                <p className="text-sm text-muted-foreground">Fecha 2</p>
-                <p className="font-medium">{formatDate(fullDeal.fecha2)}</p>
-              </div>
-            )}
-            {fullDeal.visitaConfirmada && (
-              <div>
-                <p className="text-sm text-muted-foreground">Visita Confirmada</p>
-                <p className="font-medium">{formatDate(fullDeal.visitaConfirmada)}</p>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Details */}
-      {fullDeal.detalles && (
-        <Card className="p-4">
-          <h3 className="font-medium text-sm text-muted-foreground mb-2">Detalles</h3>
-          <p className="text-sm whitespace-pre-wrap">{fullDeal.detalles}</p>
-        </Card>
-      )}
 
       {/* Activity Timeline */}
       <Card className="p-4">
@@ -405,7 +246,7 @@ export function DealDetail({ deal }: DealDetailProps) {
               <div key={note.id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-sm whitespace-pre-wrap">{note.content}</p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  {note.userName} • {formatRelativeTime(note.createdAt)}
+                  {note.authorName} • {formatRelativeTime(note.createdAt)}
                 </p>
               </div>
             ))}

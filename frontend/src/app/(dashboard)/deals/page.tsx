@@ -7,45 +7,52 @@ import {
   Search,
   Grid3X3,
   List,
-  MessageSquare,
-  Phone,
   MoreVertical,
   GripVertical,
+  DollarSign,
 } from 'lucide-react';
-import { GET_DEALS_BY_GROUP, UPDATE_DEAL, CREATE_DEAL } from '@/graphql/queries/deals';
+import { GET_DEALS_BY_STAGE, UPDATE_DEAL } from '@/graphql/queries/deals';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
-import { cn, formatRelativeTime, getWhatsAppLink } from '@/lib/utils';
-import { DEAL_GROUP_LABELS, DEAL_BUSCA_LABELS, type Deal, type DealGroup } from '@/types';
+import { cn, formatRelativeTime, formatCurrency } from '@/lib/utils';
+import { type Deal } from '@/types';
 import { DealForm } from '@/components/deals/DealForm';
 import { DealDetail } from '@/components/deals/DealDetail';
 
 type ViewMode = 'kanban' | 'list';
+type DealStage = 'active' | 'won' | 'lost';
 
-const COLUMNS: { id: DealGroup; label: string; color: string }[] = [
-  { id: 'active', label: 'Dar seguimiento', color: 'bg-yellow-500' },
-  { id: 'won', label: 'Cliente potencial', color: 'bg-green-500' },
-  { id: 'lost', label: 'Descartado', color: 'bg-red-500' },
+const COLUMNS: { id: DealStage; label: string; color: string }[] = [
+  { id: 'active', label: 'Activo', color: 'bg-yellow-500' },
+  { id: 'won', label: 'Ganado', color: 'bg-green-500' },
+  { id: 'lost', label: 'Perdido', color: 'bg-red-500' },
 ];
+
+const STAGE_LABELS: Record<string, string> = {
+  active: 'Activo',
+  won: 'Ganado',
+  lost: 'Perdido',
+};
 
 export default function DealsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [search, setSearch] = useState('');
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<DealGroup | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<DealStage | null>(null);
 
   const { openModal, closeModal } = useUIStore();
 
-  // Fetch deals by group
-  const { data, loading, refetch } = useQuery(GET_DEALS_BY_GROUP);
+  // Fetch deals by stage
+  const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
 
   // Update deal mutation (for moving between columns)
   const [updateDeal] = useMutation(UPDATE_DEAL, {
+    refetchQueries: ['GetDealsByStage', 'GetDashboardStats'],
     onCompleted: () => refetch(),
   });
 
@@ -53,8 +60,8 @@ export default function DealsPage() {
   const wonDeals = data?.wonDeals?.nodes || [];
   const lostDeals = data?.lostDeals?.nodes || [];
 
-  const getDealsByGroup = (group: DealGroup): Deal[] => {
-    switch (group) {
+  const getDealsByStage = (stage: DealStage): Deal[] => {
+    switch (stage) {
       case 'active':
         return activeDeals;
       case 'won':
@@ -71,25 +78,25 @@ export default function DealsPage() {
     setDraggedDeal(deal);
   };
 
-  const handleDragOver = (e: React.DragEvent, group: DealGroup) => {
+  const handleDragOver = (e: React.DragEvent, stage: DealStage) => {
     e.preventDefault();
-    setDragOverColumn(group);
+    setDragOverColumn(stage);
   };
 
   const handleDragLeave = () => {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetGroup: DealGroup) => {
+  const handleDrop = (e: React.DragEvent, targetStage: DealStage) => {
     e.preventDefault();
     setDragOverColumn(null);
 
-    if (draggedDeal && draggedDeal.group !== targetGroup) {
+    if (draggedDeal && draggedDeal.stage !== targetStage) {
       updateDeal({
         variables: {
           input: {
             id: draggedDeal.id,
-            group: targetGroup,
+            stage: targetStage,
           },
         },
       });
@@ -107,11 +114,7 @@ export default function DealsPage() {
   const filterDeals = (deals: Deal[]) => {
     if (!search) return deals;
     const searchLower = search.toLowerCase();
-    return deals.filter(
-      (deal) =>
-        deal.leadName?.toLowerCase().includes(searchLower) ||
-        deal.propiedad?.toLowerCase().includes(searchLower)
-    );
+    return deals.filter((deal) => deal.title?.toLowerCase().includes(searchLower));
   };
 
   return (
@@ -166,7 +169,7 @@ export default function DealsPage() {
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {COLUMNS.map((column) => {
-            const deals = filterDeals(getDealsByGroup(column.id));
+            const deals = filterDeals(getDealsByStage(column.id));
             const isDropTarget = dragOverColumn === column.id;
 
             return (
@@ -219,7 +222,7 @@ export default function DealsPage() {
                             />
                             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                               <span className="text-primary text-sm font-medium">
-                                {deal.leadName?.charAt(0).toUpperCase()}
+                                {deal.title?.charAt(0).toUpperCase() || 'D'}
                               </span>
                             </div>
                           </div>
@@ -229,34 +232,19 @@ export default function DealsPage() {
                         </div>
 
                         <div className="mt-3">
-                          <p className="font-medium">{deal.leadName}</p>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {DEAL_BUSCA_LABELS[deal.busca] || deal.busca}
-                          </p>
-                          {deal.propiedad && (
-                            <p className="text-sm text-muted-foreground truncate mt-1">
-                              {deal.propiedad}
+                          <p className="font-medium">{deal.title}</p>
+                          {deal.value && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                              <DollarSign size={14} />
+                              {formatCurrency(deal.value)}
                             </p>
                           )}
                         </div>
 
                         <div className="flex items-center justify-between mt-4 pt-3 border-t">
                           <span className="text-xs text-muted-foreground">
-                            {formatRelativeTime(deal.updatedAt)}
+                            {formatRelativeTime(deal.createdAt)}
                           </span>
-                          <div className="flex gap-1">
-                            {deal.leadMobile && (
-                              <a
-                                href={getWhatsAppLink(deal.leadMobile)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded hover:bg-whatsapp/10 transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MessageSquare size={14} className="text-whatsapp" />
-                              </a>
-                            )}
-                          </div>
                         </div>
                       </div>
                     ))
@@ -279,11 +267,10 @@ export default function DealsPage() {
             <table className="table w-full">
               <thead className="table-header">
                 <tr>
-                  <th className="table-head">Cliente</th>
-                  <th className="table-head">Busca</th>
-                  <th className="table-head">Propiedad</th>
-                  <th className="table-head">Estado</th>
-                  <th className="table-head">Actualizado</th>
+                  <th className="table-head">Título</th>
+                  <th className="table-head">Valor</th>
+                  <th className="table-head">Etapa</th>
+                  <th className="table-head">Creado</th>
                   <th className="table-head">Acciones</th>
                 </tr>
               </thead>
@@ -291,7 +278,7 @@ export default function DealsPage() {
                 {loading ? (
                   [...Array(5)].map((_, i) => (
                     <tr key={i} className="table-row">
-                      <td className="table-cell" colSpan={6}>
+                      <td className="table-cell" colSpan={5}>
                         <div className="animate-pulse h-12 bg-gray-100 rounded" />
                       </td>
                     </tr>
@@ -300,9 +287,7 @@ export default function DealsPage() {
                   [...activeDeals, ...wonDeals, ...lostDeals]
                     .filter(
                       (deal) =>
-                        !search ||
-                        deal.leadName?.toLowerCase().includes(search.toLowerCase()) ||
-                        deal.propiedad?.toLowerCase().includes(search.toLowerCase())
+                        !search || deal.title?.toLowerCase().includes(search.toLowerCase())
                     )
                     .map((deal: Deal) => (
                       <tr key={deal.id} className="table-row">
@@ -310,62 +295,42 @@ export default function DealsPage() {
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                               <span className="text-primary text-sm font-medium">
-                                {deal.leadName?.charAt(0).toUpperCase()}
+                                {deal.title?.charAt(0).toUpperCase() || 'D'}
                               </span>
                             </div>
-                            <div>
-                              <p className="font-medium">{deal.leadName}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {deal.leadEmail}
-                              </p>
-                            </div>
+                            <p className="font-medium">{deal.title}</p>
                           </div>
                         </td>
-                        <td className="table-cell capitalize">
-                          {DEAL_BUSCA_LABELS[deal.busca] || deal.busca}
-                        </td>
                         <td className="table-cell">
-                          {deal.propiedad || '-'}
+                          {deal.value ? formatCurrency(deal.value) : '-'}
                         </td>
                         <td className="table-cell">
                           <Badge
                             variant={
-                              deal.group === 'won'
+                              deal.stage === 'won'
                                 ? 'won'
-                                : deal.group === 'lost'
+                                : deal.stage === 'lost'
                                 ? 'lost'
                                 : 'active'
                             }
                           >
-                            {DEAL_GROUP_LABELS[deal.group]}
+                            {STAGE_LABELS[deal.stage] || deal.stage}
                           </Badge>
                         </td>
                         <td className="table-cell text-muted-foreground">
-                          {formatRelativeTime(deal.updatedAt)}
+                          {formatRelativeTime(deal.createdAt)}
                         </td>
                         <td className="table-cell">
-                          <div className="flex gap-1">
-                            {deal.leadMobile && (
-                              <a
-                                href={getWhatsAppLink(deal.leadMobile)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-whatsapp btn-sm btn-icon"
-                              >
-                                <MessageSquare size={14} />
-                              </a>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedDeal(deal);
-                                openModal('view-deal');
-                              }}
-                            >
-                              Ver
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedDeal(deal);
+                              openModal('view-deal');
+                            }}
+                          >
+                            Ver
+                          </Button>
                         </td>
                       </tr>
                     ))

@@ -36,35 +36,16 @@ export interface Lead {
   updatedAt: string;
 }
 
-// Deal Types
-export type DealGroup = 'active' | 'won' | 'lost';
-export type DealBusca = 'comprar' | 'alquilar' | 'vender';
-export type DealEstado = 'contactado' | 'no_contactado';
-export type DealSeguimiento = 'una' | 'dos' | 'tres';
-export type DealCalificacion = 'potencial' | 'mas_seguimiento' | 'no_potencial';
-export type DealProximoPaso = 'mas_opciones' | 'opcion_compra' | 'financiamiento' | 'compro' | 'alquilo';
+// Deal Types - matches server schema
+export type DealStage = 'active' | 'won' | 'lost';
 
 export interface Deal {
   id: string;
-  leadId: string;
-  leadName: string;
-  leadEmail: string;
-  leadMobile: string;
-  group: DealGroup;
-  busca: DealBusca;
-  propiedad?: string;
-  estado: DealEstado;
-  detalles?: string;
-  fecha1?: string;
-  fecha2?: string;
-  seguimiento?: DealSeguimiento;
-  visitaConfirmada?: string;
-  calificacion?: DealCalificacion;
-  proximoPaso?: DealProximoPaso;
-  agentId?: string;
-  agentName?: string;
+  title: string;
+  leadId: number;
+  stage: DealStage;
+  value?: number;
   createdAt: string;
-  updatedAt: string;
 }
 
 // Enquiry Types
@@ -135,13 +116,7 @@ export interface Message {
 // Dashboard Stats
 export interface DashboardStats {
   totalLeads: number;
-  newLeadsToday: number;
-  activeDeals: number;
-  wonDeals: number;
-  lostDeals: number;
-  pendingEnquiries: number;
-  leadsBySource: Record<LeadSource, number>;
-  dealsByGroup: Record<DealGroup, number>;
+  totalDeals: number;
 }
 
 // Pagination
@@ -176,38 +151,9 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
   sign: 'Rótulo',
 };
 
-// Deal Group Labels (Spanish)
-export const DEAL_GROUP_LABELS: Record<DealGroup, string> = {
-  active: 'Amarillo: Dar seguimiento',
-  won: 'Verde: Cliente potencial',
-  lost: 'Rojo: Descartado',
-};
-
-// Deal Busca Labels (Spanish)
-export const DEAL_BUSCA_LABELS: Record<DealBusca, string> = {
-  comprar: 'Comprar',
-  alquilar: 'Alquilar',
-  vender: 'Vender',
-};
-
-// Deal Estado Labels (Spanish)
-export const DEAL_ESTADO_LABELS: Record<DealEstado, string> = {
-  contactado: 'Contactado',
-  no_contactado: 'No contactado',
-};
-
-// Deal Calificacion Labels (Spanish)
-export const DEAL_CALIFICACION_LABELS: Record<DealCalificacion, string> = {
-  potencial: 'Potencial',
-  mas_seguimiento: 'Más seguimiento',
-  no_potencial: 'No potencial',
-};
-
-// Deal Proximo Paso Labels (Spanish)
-export const DEAL_PROXIMO_PASO_LABELS: Record<DealProximoPaso, string> = {
-  mas_opciones: 'Más opciones',
-  opcion_compra: 'Opción de compra',
-  financiamiento: 'Financiamiento',
-  compro: 'Compró',
-  alquilo: 'Alquiló',
+// Deal Stage Labels (Spanish)
+export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
+  active: 'Activo',
+  won: 'Ganado',
+  lost: 'Perdido',
 };
