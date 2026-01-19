@@ -11,9 +11,6 @@ export const LEAD_FRAGMENT = gql`
     message
     status
     propertyId
-    propertyTitle
-    agentId
-    agentName
     createdAt
     updatedAt
   }
@@ -21,48 +18,61 @@ export const LEAD_FRAGMENT = gql`
 
 // Get all leads with pagination
 export const GET_LEADS = gql`
-  ${LEAD_FRAGMENT}
   query GetLeads(
     $first: Int
-    $after: String
+    $offset: Int
     $status: String
     $source: String
     $search: String
-    $agentId: String
   ) {
     leads(
       first: $first
-      after: $after
-      where: {
-        status: $status
-        source: $source
-        search: $search
-        agentId: $agentId
-      }
+      offset: $offset
+      status: $status
+      source: $source
+      search: $search
     ) {
       nodes {
-        ...LeadFields
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
+        id
+        name
+        email
+        mobile
+        source
+        message
+        status
+        propertyId
+        createdAt
+        updatedAt
       }
       totalCount
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        total
+      }
     }
   }
 `;
 
 // Get single lead by ID
 export const GET_LEAD = gql`
-  ${LEAD_FRAGMENT}
   query GetLead($id: ID!) {
     lead(id: $id) {
-      ...LeadFields
+      id
+      name
+      email
+      mobile
+      source
+      message
+      status
+      propertyId
+      createdAt
+      updatedAt
       notes {
         id
         content
-        userId
-        userName
+        authorId
+        authorName
         createdAt
       }
       activities {
@@ -73,68 +83,60 @@ export const GET_LEAD = gql`
         userName
         createdAt
       }
-      deals {
-        id
-        group
-        busca
-        propiedad
-        estado
-        createdAt
-      }
-    }
-  }
-`;
-
-// Get leads count by source
-export const GET_LEADS_BY_SOURCE = gql`
-  query GetLeadsBySource {
-    leadsBySource {
-      source
-      count
     }
   }
 `;
 
 // Create lead mutation
 export const CREATE_LEAD = gql`
-  ${LEAD_FRAGMENT}
   mutation CreateLead($input: CreateLeadInput!) {
     createLead(input: $input) {
-      ...LeadFields
-    }
-  }
-`;
-
-// Update lead mutation
-export const UPDATE_LEAD = gql`
-  ${LEAD_FRAGMENT}
-  mutation UpdateLead($id: ID!, $input: UpdateLeadInput!) {
-    updateLead(id: $id, input: $input) {
-      ...LeadFields
-    }
-  }
-`;
-
-// Delete lead mutation
-export const DELETE_LEAD = gql`
-  mutation DeleteLead($id: ID!) {
-    deleteLead(id: $id) {
+      lead {
+        id
+        name
+        email
+        mobile
+        source
+        message
+        status
+        propertyId
+        createdAt
+        updatedAt
+      }
       success
       message
     }
   }
 `;
 
-// Import leads mutation
-export const IMPORT_LEADS = gql`
-  mutation ImportLeads($leads: [LeadImportInput!]!) {
-    importLeads(leads: $leads) {
-      imported
-      skipped
-      errors {
-        row
+// Update lead mutation
+export const UPDATE_LEAD = gql`
+  mutation UpdateLead($input: UpdateLeadInput!) {
+    updateLead(input: $input) {
+      lead {
+        id
+        name
+        email
+        mobile
+        source
         message
+        status
+        propertyId
+        createdAt
+        updatedAt
       }
+      success
+      message
+    }
+  }
+`;
+
+// Delete lead mutation
+export const DELETE_LEAD = gql`
+  mutation DeleteLead($input: DeleteLeadInput!) {
+    deleteLead(input: $input) {
+      success
+      message
     }
   }
 `;

@@ -61,13 +61,21 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
   });
 
   const [createLead, { loading: createLoading }] = useMutation(CREATE_LEAD, {
-    onCompleted: () => {
-      addNotification({
-        type: 'success',
-        title: 'Lead creado',
-        message: 'El lead se ha creado correctamente',
-      });
-      onSuccess();
+    onCompleted: (data) => {
+      if (data?.createLead?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Lead creado',
+          message: 'El lead se ha creado correctamente',
+        });
+        onSuccess();
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: data?.createLead?.message || 'No se pudo crear el lead',
+        });
+      }
     },
     onError: (error) => {
       addNotification({
@@ -79,13 +87,21 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
   });
 
   const [updateLead, { loading: updateLoading }] = useMutation(UPDATE_LEAD, {
-    onCompleted: () => {
-      addNotification({
-        type: 'success',
-        title: 'Lead actualizado',
-        message: 'El lead se ha actualizado correctamente',
-      });
-      onSuccess();
+    onCompleted: (data) => {
+      if (data?.updateLead?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Lead actualizado',
+          message: 'El lead se ha actualizado correctamente',
+        });
+        onSuccess();
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: data?.updateLead?.message || 'No se pudo actualizar el lead',
+        });
+      }
     },
     onError: (error) => {
       addNotification({
@@ -102,8 +118,10 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
     if (isEditing) {
       updateLead({
         variables: {
-          id: lead.id,
-          input: data,
+          input: {
+            id: lead.id,
+            ...data,
+          },
         },
       });
     } else {

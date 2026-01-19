@@ -346,7 +346,7 @@ export default function LeadsPage() {
               <Button
                 variant="destructive"
                 isLoading={deleteLoading}
-                onClick={() => deleteLead({ variables: { id: deleteConfirmLead.id } })}
+                onClick={() => deleteLead({ variables: { input: { id: deleteConfirmLead.id } } })}
               >
                 Eliminar
               </Button>

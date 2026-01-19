@@ -12,7 +12,7 @@ import {
   MoreVertical,
   GripVertical,
 } from 'lucide-react';
-import { GET_DEALS_BY_GROUP, MOVE_DEAL, CREATE_DEAL } from '@/graphql/queries/deals';
+import { GET_DEALS_BY_GROUP, UPDATE_DEAL, CREATE_DEAL } from '@/graphql/queries/deals';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -44,8 +44,8 @@ export default function DealsPage() {
   // Fetch deals by group
   const { data, loading, refetch } = useQuery(GET_DEALS_BY_GROUP);
 
-  // Move deal mutation
-  const [moveDeal] = useMutation(MOVE_DEAL, {
+  // Update deal mutation (for moving between columns)
+  const [updateDeal] = useMutation(UPDATE_DEAL, {
     onCompleted: () => refetch(),
   });
 
@@ -85,16 +85,11 @@ export default function DealsPage() {
     setDragOverColumn(null);
 
     if (draggedDeal && draggedDeal.group !== targetGroup) {
-      moveDeal({
+      updateDeal({
         variables: {
-          id: draggedDeal.id,
-          group: targetGroup,
-        },
-        optimisticResponse: {
-          moveDeal: {
-            ...draggedDeal,
+          input: {
+            id: draggedDeal.id,
             group: targetGroup,
-            __typename: 'Deal',
           },
         },
       });

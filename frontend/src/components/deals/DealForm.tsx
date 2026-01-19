@@ -26,8 +26,6 @@ const dealSchema = z.object({
   detalles: z.string().optional(),
   fecha1: z.string().optional(),
   fecha2: z.string().optional(),
-  seguimiento: z.enum(['una', 'dos', 'tres']).optional(),
-  visitaConfirmada: z.string().optional(),
   calificacion: z.enum(['potencial', 'mas_seguimiento', 'no_potencial']).optional(),
   proximoPaso: z.enum(['mas_opciones', 'opcion_compra', 'financiamiento', 'compro', 'alquilo']).optional(),
   group: z.enum(['active', 'won', 'lost']).optional(),
@@ -50,12 +48,6 @@ const ESTADO_OPTIONS = Object.entries(DEAL_ESTADO_LABELS).map(([value, label]) =
   value,
   label,
 }));
-
-const SEGUIMIENTO_OPTIONS = [
-  { value: 'una', label: 'Una vez' },
-  { value: 'dos', label: 'Dos veces' },
-  { value: 'tres', label: 'Tres veces' },
-];
 
 const CALIFICACION_OPTIONS = Object.entries(DEAL_CALIFICACION_LABELS).map(([value, label]) => ({
   value,
@@ -91,33 +83,42 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
     defaultValues: {
-      leadId: deal?.leadId || leadId || '',
+      leadId: deal?.leadId?.toString() || leadId || '',
       busca: deal?.busca || 'comprar',
       propiedad: deal?.propiedad || '',
       estado: deal?.estado || 'no_contactado',
       detalles: deal?.detalles || '',
       fecha1: deal?.fecha1 || '',
       fecha2: deal?.fecha2 || '',
-      seguimiento: deal?.seguimiento,
-      visitaConfirmada: deal?.visitaConfirmada || '',
       calificacion: deal?.calificacion,
       proximoPaso: deal?.proximoPaso,
       group: deal?.group || 'active',
     },
   });
 
+  const selectedLeadId = watch('leadId');
+
   const [createDeal, { loading: createLoading }] = useMutation(CREATE_DEAL, {
-    onCompleted: () => {
-      addNotification({
-        type: 'success',
-        title: 'Deal creado',
-        message: 'El deal se ha creado correctamente',
-      });
-      onSuccess();
+    onCompleted: (data) => {
+      if (data?.createDeal?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Deal creado',
+          message: 'El deal se ha creado correctamente',
+        });
+        onSuccess();
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: data?.createDeal?.message || 'No se pudo crear el deal',
+        });
+      }
     },
     onError: (error) => {
       addNotification({
@@ -129,13 +130,21 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   });
 
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
-    onCompleted: () => {
-      addNotification({
-        type: 'success',
-        title: 'Deal actualizado',
-        message: 'El deal se ha actualizado correctamente',
-      });
-      onSuccess();
+    onCompleted: (data) => {
+      if (data?.updateDeal?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Deal actualizado',
+          message: 'El deal se ha actualizado correctamente',
+        });
+        onSuccess();
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: data?.updateDeal?.message || 'No se pudo actualizar el deal',
+        });
+      }
     },
     onError: (error) => {
       addNotification({
@@ -149,17 +158,42 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const loading = createLoading || updateLoading;
 
   const onSubmit = (data: DealFormData) => {
+    // Find the selected lead to get contact info
+    const selectedLead = leads.find((l: any) => l.id === data.leadId);
+
     if (isEditing) {
       updateDeal({
         variables: {
-          id: deal.id,
-          input: data,
+          input: {
+            id: deal.id,
+            group: data.group,
+            busca: data.busca,
+            estado: data.estado,
+            calificacion: data.calificacion || undefined,
+            proximoPaso: data.proximoPaso || undefined,
+            propiedad: data.propiedad,
+            detalles: data.detalles,
+            fecha1: data.fecha1 || undefined,
+            fecha2: data.fecha2 || undefined,
+          },
         },
       });
     } else {
       createDeal({
         variables: {
-          input: data,
+          input: {
+            leadId: parseInt(data.leadId),
+            leadName: selectedLead?.name || '',
+            leadEmail: selectedLead?.email || '',
+            leadMobile: selectedLead?.mobile || '',
+            group: data.group || 'active',
+            busca: data.busca,
+            estado: data.estado,
+            calificacion: data.calificacion || undefined,
+            proximoPaso: data.proximoPaso || undefined,
+            propiedad: data.propiedad,
+            detalles: data.detalles,
+          },
         },
       });
     }
@@ -210,7 +244,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
       </div>
 
       {/* Dates */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Fecha 1"
           type="date"
@@ -224,24 +258,10 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
           error={errors.fecha2?.message}
           {...register('fecha2')}
         />
-
-        <Input
-          label="Visita confirmada"
-          type="date"
-          error={errors.visitaConfirmada?.message}
-          {...register('visitaConfirmada')}
-        />
       </div>
 
       {/* Follow-up & Qualification */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Select
-          label="Seguimiento"
-          options={[{ value: '', label: 'Seleccionar...' }, ...SEGUIMIENTO_OPTIONS]}
-          error={errors.seguimiento?.message}
-          {...register('seguimiento')}
-        />
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
           label="Calificación"
           options={[{ value: '', label: 'Seleccionar...' }, ...CALIFICACION_OPTIONS]}

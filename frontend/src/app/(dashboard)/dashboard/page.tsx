@@ -18,36 +18,35 @@ import { LEAD_SOURCE_LABELS } from '@/types';
 // Dashboard stats query - connects to WordPress GraphQL
 const GET_DASHBOARD_STATS = gql`
   query GetDashboardStats {
-    crmLeads(first: 100) {
+    crmStats {
+      totalLeads
+      totalDeals
+      activeDeals
+      wonDeals
+      newLeadsThisMonth
+      conversionRate
+    }
+    recentLeads: leads(first: 5) {
       nodes {
         id
+        name
+        email
+        mobile
+        source
+        status
+        createdAt
       }
     }
-    crmDeals(first: 100) {
+    recentDeals: deals(first: 5) {
       nodes {
         id
-        dealGroup
-      }
-    }
-    recentLeads: crmLeads(first: 5, where: { orderby: { field: DATE, order: DESC } }) {
-      nodes {
-        id
-        databaseId
-        title
+        leadName
         leadEmail
         leadMobile
-        leadSource
-        date
-      }
-    }
-    recentDeals: crmDeals(first: 5, where: { orderby: { field: MODIFIED, order: DESC } }) {
-      nodes {
-        id
-        databaseId
-        title
-        dealGroup
-        dealBusca
-        modified
+        group
+        busca
+        estado
+        createdAt
       }
     }
   }
@@ -89,18 +88,14 @@ export default function DashboardPage() {
     fetchPolicy: 'cache-and-network',
   });
 
-  // Calculate stats from data
-  const allLeads = data?.crmLeads?.nodes || [];
-  const allDeals = data?.crmDeals?.nodes || [];
+  const stats = data?.crmStats || {
+    totalLeads: 0,
+    totalDeals: 0,
+    activeDeals: 0,
+    wonDeals: 0,
+  };
   const recentLeads = data?.recentLeads?.nodes || [];
   const recentDeals = data?.recentDeals?.nodes || [];
-
-  const stats = {
-    totalLeads: allLeads.length,
-    activeDeals: allDeals.filter((d: any) => d.dealGroup === 'active').length,
-    wonDeals: allDeals.filter((d: any) => d.dealGroup === 'won').length,
-    totalDeals: allDeals.length,
-  };
 
   return (
     <div className="space-y-6">
@@ -164,26 +159,26 @@ export default function DashboardPage() {
                 {recentLeads.map((lead: any) => (
                   <Link
                     key={lead.id}
-                    href={`/leads?id=${lead.databaseId || lead.id}`}
+                    href={`/leads?id=${lead.id}`}
                     className="flex items-center justify-between p-3 rounded-lg bg-[#faf5f0] dark:bg-[#111] hover:bg-[#f0e6d8] dark:hover:bg-[#1a1a1a] transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-[#8B4513] rounded-full flex items-center justify-center">
                         <span className="text-white font-medium">
-                          {lead.title?.charAt(0).toUpperCase() || '?'}
+                          {lead.name?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-black dark:text-white">{lead.title}</p>
+                        <p className="font-medium text-black dark:text-white">{lead.name}</p>
                         <p className="text-sm text-gray-500">
-                          {LEAD_SOURCE_LABELS[lead.leadSource as keyof typeof LEAD_SOURCE_LABELS] || lead.leadSource || 'Sin fuente'}
+                          {LEAD_SOURCE_LABELS[lead.source as keyof typeof LEAD_SOURCE_LABELS] || lead.source || 'Sin fuente'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {lead.leadMobile && (
+                      {lead.mobile && (
                         <a
-                          href={getWhatsAppLink(lead.leadMobile)}
+                          href={getWhatsAppLink(lead.mobile)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors"
@@ -193,7 +188,7 @@ export default function DashboardPage() {
                         </a>
                       )}
                       <span className="text-xs text-gray-500">
-                        {lead.date ? formatRelativeTime(lead.date) : ''}
+                        {lead.createdAt ? formatRelativeTime(lead.createdAt) : ''}
                       </span>
                     </div>
                   </Link>
@@ -244,7 +239,7 @@ export default function DashboardPage() {
                 {recentDeals.map((deal: any) => (
                   <Link
                     key={deal.id}
-                    href={`/deals?id=${deal.databaseId || deal.id}`}
+                    href={`/deals?id=${deal.id}`}
                     className="flex items-center justify-between p-3 rounded-lg bg-[#faf5f0] dark:bg-[#111] hover:bg-[#f0e6d8] dark:hover:bg-[#1a1a1a] transition-colors"
                   >
                     <div className="flex items-center gap-3">
@@ -252,24 +247,24 @@ export default function DashboardPage() {
                         <Kanban className="w-5 h-5 text-[#8B4513]" />
                       </div>
                       <div>
-                        <p className="font-medium text-black dark:text-white">{deal.title}</p>
+                        <p className="font-medium text-black dark:text-white">{deal.leadName}</p>
                         <p className="text-sm text-gray-500 capitalize">
-                          {deal.dealBusca || 'Sin especificar'}
+                          {deal.busca || 'Sin especificar'}
                         </p>
                       </div>
                     </div>
                     <Badge
                       variant={
-                        deal.dealGroup === 'won'
+                        deal.group === 'won'
                           ? 'won'
-                          : deal.dealGroup === 'lost'
+                          : deal.group === 'lost'
                           ? 'lost'
                           : 'active'
                       }
                     >
-                      {deal.dealGroup === 'active'
+                      {deal.group === 'active'
                         ? 'Seguimiento'
-                        : deal.dealGroup === 'won'
+                        : deal.group === 'won'
                         ? 'Potencial'
                         : 'Descartado'}
                     </Badge>
