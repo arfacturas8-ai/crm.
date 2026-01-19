@@ -74,10 +74,18 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data, loading } = useQuery(GET_PROPERTIES, {
+  // Search when there's a search term OR when dropdown is open
+  const shouldSearch = isOpen || search.length > 0;
+
+  const { data, loading, error } = useQuery(GET_PROPERTIES, {
     variables: { search: search || null, first: 20 },
-    skip: !isOpen,
+    skip: !shouldSearch,
   });
+
+  // Debug: log any errors
+  if (error) {
+    console.error('PropertySelector error:', error);
+  }
 
   const properties: Property[] = data?.properties?.nodes || [];
 
@@ -169,10 +177,20 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
           type="text"
           value={search}
           onChange={(e) => {
-            setSearch(e.target.value);
-            setIsOpen(true);
+            const value = e.target.value;
+            setSearch(value);
+            // Open dropdown when typing
+            if (value.length > 0) {
+              setIsOpen(true);
+            }
           }}
           onFocus={() => setIsOpen(true)}
+          onKeyDown={(e) => {
+            // Open dropdown on any key press
+            if (e.key !== 'Escape' && e.key !== 'Tab') {
+              setIsOpen(true);
+            }
+          }}
           placeholder="Buscar propiedad por nombre o dirección..."
           className="w-full pl-10 pr-4 py-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent"
         />
@@ -197,6 +215,11 @@ export function PropertySelector({ selectedProperty, onSelect, onClose }: Proper
             <div className="p-4 text-center">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#8B4513]" />
               <p className="text-sm text-gray-500 mt-2">Buscando propiedades...</p>
+            </div>
+          ) : error ? (
+            <div className="p-4 text-center">
+              <p className="text-sm text-red-500">Error al buscar propiedades</p>
+              <p className="text-xs text-gray-400 mt-1">Verifica que WPGraphQL esté configurado para Houzez</p>
             </div>
           ) : properties.length > 0 ? (
             <div className="py-2">
