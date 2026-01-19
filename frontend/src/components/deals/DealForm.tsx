@@ -104,6 +104,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const selectedLeadId = watch('leadId');
 
   const [createDeal, { loading: createLoading }] = useMutation(CREATE_DEAL, {
+    refetchQueries: ['GetDeals', 'GetDealsByGroup', 'GetDashboardStats'],
     onCompleted: (data) => {
       if (data?.createDeal?.deal) {
         addNotification({
@@ -130,6 +131,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   });
 
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
+    refetchQueries: ['GetDeals', 'GetDeal', 'GetDealsByGroup', 'GetDashboardStats'],
     onCompleted: (data) => {
       if (data?.updateDeal?.deal) {
         addNotification({

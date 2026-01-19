@@ -19,7 +19,7 @@ import {
   Printer,
   Home,
 } from 'lucide-react';
-import { GET_LEAD } from '@/graphql/queries/leads';
+import { GET_LEAD, UPDATE_LEAD } from '@/graphql/queries/leads';
 import { Badge, getLeadStatusVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -48,9 +48,14 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [savingProperty, setSavingProperty] = useState(false);
 
   const { data, loading, refetch } = useQuery(GET_LEAD, {
     variables: { id: lead.id },
+  });
+
+  const [updateLead] = useMutation(UPDATE_LEAD, {
+    refetchQueries: ['GetLeads', 'GetLead', 'GetDashboardStats'],
   });
 
   const fullLead: Lead = data?.lead || lead;
@@ -347,6 +352,31 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                   selectedProperty={selectedProperty}
                   onSelect={setSelectedProperty}
                 />
+                {selectedProperty && (
+                  <Button
+                    className="mt-4 w-full"
+                    disabled={savingProperty}
+                    onClick={async () => {
+                      setSavingProperty(true);
+                      try {
+                        await updateLead({
+                          variables: {
+                            input: {
+                              id: lead.id,
+                              propertyId: selectedProperty.databaseId,
+                            },
+                          },
+                        });
+                        refetch();
+                      } catch (err) {
+                        console.error('Error saving property:', err);
+                      }
+                      setSavingProperty(false);
+                    }}
+                  >
+                    {savingProperty ? 'Guardando...' : 'Guardar Propiedad Vinculada'}
+                  </Button>
+                )}
               </Card>
             </div>
 

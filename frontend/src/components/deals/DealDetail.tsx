@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import {
   User,
   Mail,
@@ -16,7 +16,7 @@ import {
   Printer,
   Home,
 } from 'lucide-react';
-import { GET_DEAL } from '@/graphql/queries/deals';
+import { GET_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -42,10 +42,15 @@ interface DealDetailProps {
 
 export function DealDetail({ deal }: DealDetailProps) {
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [savingProperty, setSavingProperty] = useState(false);
 
   // Fetch full deal details
-  const { data, loading } = useQuery(GET_DEAL, {
+  const { data, loading, refetch } = useQuery(GET_DEAL, {
     variables: { id: deal.id },
+  });
+
+  const [updateDeal] = useMutation(UPDATE_DEAL, {
+    refetchQueries: ['GetDeals', 'GetDeal', 'GetDashboardStats'],
   });
 
   const fullDeal: Deal = data?.deal || deal;
@@ -280,6 +285,31 @@ export function DealDetail({ deal }: DealDetailProps) {
         />
         {fullDeal.propiedad && !selectedProperty && (
           <p className="text-sm text-gray-500 mt-2">Propiedad original: {fullDeal.propiedad}</p>
+        )}
+        {selectedProperty && (
+          <Button
+            className="mt-4 w-full"
+            disabled={savingProperty}
+            onClick={async () => {
+              setSavingProperty(true);
+              try {
+                await updateDeal({
+                  variables: {
+                    input: {
+                      id: deal.id,
+                      propiedad: selectedProperty.title,
+                    },
+                  },
+                });
+                refetch();
+              } catch (err) {
+                console.error('Error saving property:', err);
+              }
+              setSavingProperty(false);
+            }}
+          >
+            {savingProperty ? 'Guardando...' : 'Guardar Propiedad Vinculada'}
+          </Button>
         )}
       </Card>
 
