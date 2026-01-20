@@ -92,6 +92,8 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     refetchQueries: ['GetDeals', 'GetDealsByStage', 'GetDashboardStats'],
     awaitRefetchQueries: true,
     onCompleted: (data) => {
+      console.log('CreateDeal response:', data);
+      console.log('Created deal object:', data?.createDeal?.deal);
       if (data?.createDeal?.deal) {
         addNotification({
           type: 'success',
@@ -178,14 +180,17 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         },
       });
     } else {
+      const dealInput = {
+        title: data.title,
+        leadId: parseInt(data.leadId),
+        stage: data.stage,
+        value: data.value ? parseFloat(data.value) : undefined,
+      };
+      console.log('Creating deal with input:', dealInput);
+      console.log('Original leadId from form:', data.leadId);
       createDeal({
         variables: {
-          input: {
-            title: data.title,
-            leadId: parseInt(data.leadId),
-            stage: data.stage,
-            value: data.value ? parseFloat(data.value) : undefined,
-          },
+          input: dealInput,
         },
       });
     }

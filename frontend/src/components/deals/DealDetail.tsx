@@ -654,6 +654,14 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                   </p>
                 </div>
 
+                {/* Debug info */}
+                <div className="mb-4 p-3 bg-gray-100 rounded text-xs">
+                  <p>Deal ID: {fullDeal.id}</p>
+                  <p>Lead ID: {fullDeal.leadId || 'NO TIENE'}</p>
+                  <p>Lead cargado: {linkedLead ? 'SI' : 'NO'}</p>
+                  <p>Property ID del lead: {linkedLead?.propertyId || 'N/A'}</p>
+                </div>
+
                 {linkedLead ? (
                   <div className="space-y-4">
                     <PropertySelector
