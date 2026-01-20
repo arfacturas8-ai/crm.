@@ -157,7 +157,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
           variables: {
             input: {
               id: data.leadId,
-              propertyId: selectedProperty.databaseId?.toString(),
+              propertyId: parseInt(selectedProperty.databaseId, 10),
             },
           },
         });

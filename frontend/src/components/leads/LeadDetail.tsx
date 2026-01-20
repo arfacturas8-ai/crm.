@@ -363,7 +363,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                           variables: {
                             input: {
                               id: lead.id,
-                              propertyId: selectedProperty.databaseId,
+                              propertyId: parseInt(selectedProperty.databaseId, 10),
                             },
                           },
                         });
