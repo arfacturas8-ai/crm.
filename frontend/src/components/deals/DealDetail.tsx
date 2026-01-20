@@ -116,22 +116,37 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const linkedLead = leadData?.lead;
   const propertyId = linkedLead?.propertyId;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('DealDetail - linkedLead:', linkedLead);
+    console.log('DealDetail - propertyId:', propertyId);
+  }, [linkedLead, propertyId]);
+
   // Fetch property if we have a propertyId
   const { data: propertyData, loading: propertyLoading, refetch: refetchProperty } = useQuery(GET_PROPERTY, {
-    variables: { id: propertyId },
+    variables: { id: propertyId?.toString() },
     skip: !propertyId,
   });
 
   const linkedProperty = propertyData?.property;
+
+  // Debug property data
+  useEffect(() => {
+    console.log('DealDetail - linkedProperty:', linkedProperty);
+    console.log('DealDetail - propertyGallery:', linkedProperty?.propertyGallery);
+  }, [linkedProperty]);
 
   // Update lead mutation (for property linking)
   const [updateLead] = useMutation(UPDATE_LEAD, {
     onCompleted: async () => {
       // Refetch lead to get updated propertyId
       const { data: updatedLeadData } = await refetchLead();
+      console.log('After refetchLead:', updatedLeadData);
       // If property was linked, refetch property data
       if (updatedLeadData?.lead?.propertyId) {
-        await refetchProperty({ id: updatedLeadData.lead.propertyId });
+        const propId = updatedLeadData.lead.propertyId.toString();
+        console.log('Refetching property with ID:', propId);
+        await refetchProperty({ id: propId });
       }
       addNotification({
         type: 'success',
