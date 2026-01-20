@@ -107,6 +107,13 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   // Notes is a string field from the backend
   const notesText = (fullDeal as any)?.notes || '';
 
+  // Debug: log the full deal
+  useEffect(() => {
+    console.log('DealDetail - deal prop:', deal);
+    console.log('DealDetail - fullDeal:', fullDeal);
+    console.log('DealDetail - fullDeal.leadId:', fullDeal.leadId);
+  }, [deal, fullDeal]);
+
   // Fetch lead to get property ID
   const { data: leadData, refetch: refetchLead } = useQuery(GET_LEAD, {
     variables: { id: fullDeal.leadId?.toString() },
