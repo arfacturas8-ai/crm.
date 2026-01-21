@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  CalendarCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -21,7 +22,8 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Leads', href: '/leads', icon: Users },
   { name: 'Deals', href: '/deals', icon: Kanban },
-  { name: 'Búsquedas', href: '/enquiries', icon: Search },
+  { name: 'Actividades', href: '/activities', icon: CalendarCheck },
+  { name: 'Busquedas', href: '/enquiries', icon: Search },
 ];
 
 export function Sidebar() {
