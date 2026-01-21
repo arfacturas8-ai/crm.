@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import {
   User,
@@ -8,18 +8,21 @@ import {
   Phone,
   MessageSquare,
   Calendar,
-  Tag,
   Clock,
   FileText,
   Send,
   Plus,
   X,
   CheckCircle,
-  AlertCircle,
   Printer,
-  Home,
+  Heart,
+  History,
+  DollarSign,
+  TrendingUp,
+  Building2,
 } from 'lucide-react';
 import { GET_LEAD, UPDATE_LEAD } from '@/graphql/queries/leads';
+import { GET_DEALS } from '@/graphql/queries/deals';
 import { Badge, getLeadStatusVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -28,16 +31,19 @@ import {
   formatRelativeTime,
   getWhatsAppLink,
   formatPhoneDisplay,
+  formatCurrency,
 } from '@/lib/utils';
 import { LEAD_SOURCE_LABELS, type Lead, type LeadSource } from '@/types';
 import { PropertySelector } from '@/components/ui/PropertySelector';
+import { ClientPreferences } from './ClientPreferences';
+import { ClientTimeline, generateTimelineEvents } from './ClientTimeline';
 
 interface LeadDetailProps {
   lead: Lead;
   onClose?: () => void;
 }
 
-type TabType = 'info' | 'whatsapp' | 'email' | 'activity' | 'notes';
+type TabType = 'info' | 'preferences' | 'timeline' | 'whatsapp' | 'email' | 'notes';
 
 export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [activeTab, setActiveTab] = useState<TabType>('info');
@@ -54,6 +60,11 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     variables: { id: lead.id },
   });
 
+  // Fetch deals for this lead
+  const { data: dealsData } = useQuery(GET_DEALS, {
+    variables: { first: 100 },
+  });
+
   const [updateLead] = useMutation(UPDATE_LEAD, {
     refetchQueries: ['GetLeads', 'GetLead', 'GetDashboardStats'],
   });
@@ -61,14 +72,47 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const fullLead: Lead = data?.lead || lead;
   const notes = (fullLead as any)?.notes || [];
   const activities = (fullLead as any)?.activities || [];
-  const deals = (fullLead as any)?.deals || [];
+
+  // Filter deals for this lead
+  const leadDeals = useMemo(() => {
+    const allDeals = dealsData?.deals?.nodes || [];
+    return allDeals.filter((deal: any) => deal.leadId === parseInt(lead.id));
+  }, [dealsData, lead.id]);
+
+  // Parse preferences from JSON
+  const preferences = useMemo(() => {
+    try {
+      const prefsString = (fullLead as any)?.preferences;
+      return prefsString ? JSON.parse(prefsString) : null;
+    } catch {
+      return null;
+    }
+  }, [fullLead]);
+
+  // Generate timeline events
+  const timelineEvents = useMemo(() => {
+    return generateTimelineEvents(fullLead, leadDeals, activities);
+  }, [fullLead, leadDeals, activities]);
+
+  // Calculate client stats
+  const clientStats = useMemo(() => {
+    const totalValue = leadDeals.reduce((sum: number, deal: any) => sum + (deal.value || 0), 0);
+    const wonDeals = leadDeals.filter((deal: any) => deal.stage === 'won' || deal.stage === 'closed_won');
+    const wonValue = wonDeals.reduce((sum: number, deal: any) => sum + (deal.value || 0), 0);
+    return {
+      totalDeals: leadDeals.length,
+      totalValue,
+      wonDeals: wonDeals.length,
+      wonValue,
+    };
+  }, [leadDeals]);
 
   // WhatsApp templates
   const whatsappTemplates = [
-    { label: 'Saludo inicial', message: `Hola ${fullLead.name}, gracias por contactarnos. ¿En qué podemos ayudarle?` },
+    { label: 'Saludo inicial', message: `Hola ${fullLead.name}, gracias por contactarnos. ¿En que podemos ayudarle?` },
     { label: 'Seguimiento', message: `Hola ${fullLead.name}, ¿tuvo oportunidad de revisar las propiedades que le enviamos?` },
-    { label: 'Agendar visita', message: `Hola ${fullLead.name}, ¿le gustaría agendar una visita para conocer la propiedad?` },
-    { label: 'Enviar información', message: `Hola ${fullLead.name}, le comparto información adicional sobre la propiedad de su interés.` },
+    { label: 'Agendar visita', message: `Hola ${fullLead.name}, ¿le gustaria agendar una visita para conocer la propiedad?` },
+    { label: 'Enviar informacion', message: `Hola ${fullLead.name}, le comparto informacion adicional sobre la propiedad de su interes.` },
   ];
 
   // Email templates
@@ -76,17 +120,17 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     {
       label: 'Bienvenida',
       subject: 'Bienvenido a HabitaCR',
-      body: `Estimado/a ${fullLead.name},\n\nGracias por contactarnos. Estamos encantados de poder ayudarle a encontrar la propiedad ideal.\n\nQuedamos a su disposición.\n\nSaludos cordiales,\nEquipo HabitaCR`
+      body: `Estimado/a ${fullLead.name},\n\nGracias por contactarnos. Estamos encantados de poder ayudarle a encontrar la propiedad ideal.\n\nQuedamos a su disposicion.\n\nSaludos cordiales,\nEquipo HabitaCR`
     },
     {
       label: 'Propiedades disponibles',
-      subject: 'Propiedades que coinciden con su búsqueda',
-      body: `Estimado/a ${fullLead.name},\n\nHemos seleccionado las siguientes propiedades que podrían ser de su interés:\n\n[Lista de propiedades]\n\n¿Le gustaría agendar una visita?\n\nSaludos cordiales,\nEquipo HabitaCR`
+      subject: 'Propiedades que coinciden con su busqueda',
+      body: `Estimado/a ${fullLead.name},\n\nHemos seleccionado las siguientes propiedades que podrian ser de su interes:\n\n[Lista de propiedades]\n\n¿Le gustaria agendar una visita?\n\nSaludos cordiales,\nEquipo HabitaCR`
     },
     {
       label: 'Seguimiento',
       subject: 'Seguimiento - HabitaCR',
-      body: `Estimado/a ${fullLead.name},\n\nEsperamos que se encuentre bien. Queríamos hacer seguimiento respecto a su búsqueda de propiedad.\n\n¿Hay algo en lo que podamos ayudarle?\n\nSaludos cordiales,\nEquipo HabitaCR`
+      body: `Estimado/a ${fullLead.name},\n\nEsperamos que se encuentre bien. Queriamos hacer seguimiento respecto a su busqueda de propiedad.\n\n¿Hay algo en lo que podamos ayudarle?\n\nSaludos cordiales,\nEquipo HabitaCR`
     },
   ];
 
@@ -101,34 +145,25 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const propertyInfo = selectedProperty ? `
-      <div style="margin-top: 20px; padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px;">
-        <h3 style="color: #8B4513; margin: 0 0 10px 0; font-size: 14px;">Propiedad Vinculada</h3>
-        <p style="margin: 5px 0;"><strong>${selectedProperty.title}</strong></p>
-        ${selectedProperty.propertyDetails?.propertyAddress ? `<p style="margin: 5px 0; color: #666;">${selectedProperty.propertyDetails.propertyAddress}</p>` : ''}
-        ${selectedProperty.propertyDetails?.propertyPrice ? `<p style="margin: 5px 0; color: #8B4513; font-weight: bold;">$${selectedProperty.propertyDetails.propertyPrice.toLocaleString()}</p>` : ''}
-      </div>
-    ` : '';
-
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Lead - ${fullLead.name}</title>
+        <title>Cliente 360 - ${fullLead.name}</title>
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
           .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
           .logo { height: 60px; margin-right: 20px; }
           .title { color: #8B4513; font-size: 24px; font-weight: bold; }
           .subtitle { color: #666; font-size: 14px; }
+          .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+          .stat { padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px; text-align: center; }
+          .stat-value { font-size: 24px; font-weight: bold; color: #8B4513; }
+          .stat-label { font-size: 12px; color: #666; }
           .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
           .info-card { padding: 15px; border: 1px solid #e0ccb0; border-radius: 8px; }
           .info-label { color: #8B4513; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-          .info-item { margin: 8px 0; }
           .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
-          .badge-new { background: #e0f2fe; color: #0369a1; }
-          .badge-contacted { background: #fef3c7; color: #92400e; }
-          .badge-qualified { background: #d1fae5; color: #065f46; }
           .footer { margin-top: 40px; text-align: center; color: #8B4513; font-size: 12px; }
           @media print { body { padding: 20px; } }
         </style>
@@ -137,7 +172,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         <div class="header">
           <img src="/images/habita-logo.jpg" class="logo" alt="HabitaCR" onerror="this.style.display='none'" />
           <div>
-            <div class="title">HabitaCR - Ficha de Lead</div>
+            <div class="title">HabitaCR - Vista 360° del Cliente</div>
             <div class="subtitle">Generado el ${new Date().toLocaleDateString('es-CR', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
           </div>
         </div>
@@ -148,31 +183,47 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           </div>
           <div>
             <h2 style="margin: 0; color: #333;">${fullLead.name}</h2>
-            <span class="badge badge-${fullLead.status}">${fullLead.status === 'new' ? 'Nuevo' : fullLead.status === 'contacted' ? 'Contactado' : fullLead.status === 'qualified' ? 'Calificado' : fullLead.status}</span>
+            <p style="margin: 5px 0 0 0; color: #666;">${fullLead.email || ''} | ${fullLead.mobile || ''}</p>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value">${clientStats.totalDeals}</div>
+            <div class="stat-label">Deals Totales</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">$${clientStats.totalValue.toLocaleString()}</div>
+            <div class="stat-label">Valor Total</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${clientStats.wonDeals}</div>
+            <div class="stat-label">Deals Ganados</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">$${clientStats.wonValue.toLocaleString()}</div>
+            <div class="stat-label">Valor Ganado</div>
           </div>
         </div>
 
         <div class="info-grid">
           <div class="info-card">
-            <div class="info-label">Información de Contacto</div>
-            ${fullLead.mobile ? `<div class="info-item">Tel: ${fullLead.mobile}</div>` : ''}
-            ${fullLead.email ? `<div class="info-item">Email: ${fullLead.email}</div>` : ''}
-            <div class="info-item">Fecha: ${formatDate(fullLead.createdAt)}</div>
+            <div class="info-label">Informacion de Contacto</div>
+            ${fullLead.mobile ? `<p>Tel: ${fullLead.mobile}</p>` : ''}
+            ${fullLead.email ? `<p>Email: ${fullLead.email}</p>` : ''}
+            <p>Origen: ${LEAD_SOURCE_LABELS[fullLead.source as LeadSource] || fullLead.source}</p>
+            <p>Fecha: ${formatDate(fullLead.createdAt)}</p>
           </div>
+          ${preferences ? `
           <div class="info-card">
-            <div class="info-label">Origen</div>
-            <div class="info-item">${LEAD_SOURCE_LABELS[fullLead.source as LeadSource] || fullLead.source || 'Sin especificar'}</div>
+            <div class="info-label">Preferencias</div>
+            ${preferences.propertyType ? `<p>Tipo: ${preferences.propertyType}</p>` : ''}
+            ${preferences.transactionType ? `<p>Busca: ${preferences.transactionType === 'buy' ? 'Comprar' : 'Alquilar'}</p>` : ''}
+            ${preferences.minBudget || preferences.maxBudget ? `<p>Presupuesto: $${preferences.minBudget?.toLocaleString() || '0'} - $${preferences.maxBudget?.toLocaleString() || 'N/A'}</p>` : ''}
+            ${preferences.locations?.length ? `<p>Ubicaciones: ${preferences.locations.join(', ')}</p>` : ''}
           </div>
+          ` : ''}
         </div>
-
-        ${fullLead.message ? `
-          <div class="info-card" style="margin-top: 20px;">
-            <div class="info-label">Mensaje del Lead</div>
-            <p style="margin: 0; white-space: pre-wrap;">${fullLead.message}</p>
-          </div>
-        ` : ''}
-
-        ${propertyInfo}
 
         <div class="footer">
           <p>HabitaCR - CRM Inmobiliario</p>
@@ -216,44 +267,67 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   };
 
   const tabs = [
-    { id: 'info' as TabType, label: 'Información', icon: User },
+    { id: 'info' as TabType, label: 'Resumen', icon: User },
+    { id: 'preferences' as TabType, label: 'Preferencias', icon: Heart },
+    { id: 'timeline' as TabType, label: 'Timeline', icon: History },
     { id: 'whatsapp' as TabType, label: 'WhatsApp', icon: MessageSquare, disabled: !fullLead.mobile },
     { id: 'email' as TabType, label: 'Correo', icon: Mail, disabled: !fullLead.email },
-    { id: 'activity' as TabType, label: 'Actividad', icon: Clock },
     { id: 'notes' as TabType, label: 'Notas', icon: FileText, count: notes.length },
   ];
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-black">
-      {/* Header */}
-      <div className="flex items-start justify-between p-6 border-b border-[#e0ccb0] dark:border-[#3D2314]">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-[#8B4513] rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-xl">
-              {fullLead.name?.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-black dark:text-white">{fullLead.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant={getLeadStatusVariant(fullLead.status)}>
-                {fullLead.status === 'new' ? 'Nuevo'
-                  : fullLead.status === 'contacted' ? 'Contactado'
-                  : fullLead.status === 'qualified' ? 'Calificado'
-                  : fullLead.status === 'converted' ? 'Convertido'
-                  : 'Perdido'}
-              </Badge>
-              <span className="text-sm text-[#8B4513]">
-                {LEAD_SOURCE_LABELS[fullLead.source as LeadSource] || fullLead.source}
+      {/* Header with client stats */}
+      <div className="border-b border-[#e0ccb0] dark:border-[#3D2314]">
+        <div className="flex items-start justify-between p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-[#8B4513] rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xl">
+                {fullLead.name?.charAt(0).toUpperCase()}
               </span>
             </div>
+            <div>
+              <h2 className="text-xl font-semibold text-black dark:text-white">{fullLead.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant={getLeadStatusVariant(fullLead.status)}>
+                  {fullLead.status === 'new' ? 'Nuevo'
+                    : fullLead.status === 'contacted' ? 'Contactado'
+                    : fullLead.status === 'qualified' ? 'Calificado'
+                    : fullLead.status === 'converted' ? 'Convertido'
+                    : 'Perdido'}
+                </Badge>
+                <span className="text-sm text-[#8B4513]">
+                  {LEAD_SOURCE_LABELS[fullLead.source as LeadSource] || fullLead.source}
+                </span>
+              </div>
+            </div>
+          </div>
+          {onClose && (
+            <button onClick={onClose} className="p-2 hover:bg-[#f0e6d8] rounded-lg transition-colors">
+              <X size={20} className="text-black dark:text-white" />
+            </button>
+          )}
+        </div>
+
+        {/* Stats Bar */}
+        <div className="grid grid-cols-4 gap-4 px-6 pb-4">
+          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-[#8B4513]">{clientStats.totalDeals}</div>
+            <div className="text-xs text-gray-500">Deals</div>
+          </div>
+          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-[#8B4513]">{formatCurrency(clientStats.totalValue)}</div>
+            <div className="text-xs text-gray-500">Valor Total</div>
+          </div>
+          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-green-600">{clientStats.wonDeals}</div>
+            <div className="text-xs text-gray-500">Ganados</div>
+          </div>
+          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(clientStats.wonValue)}</div>
+            <div className="text-xs text-gray-500">Valor Ganado</div>
           </div>
         </div>
-        {onClose && (
-          <button onClick={onClose} className="p-2 hover:bg-[#f0e6d8] rounded-lg transition-colors">
-            <X size={20} className="text-black dark:text-white" />
-          </button>
-        )}
       </div>
 
       {/* Quick Actions */}
@@ -284,7 +358,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         )}
         <Button size="sm" variant="outline" className="border-[#8B4513] text-[#8B4513]" onClick={handlePrint}>
           <Printer size={16} className="mr-2" />
-          Imprimir
+          Imprimir 360°
         </Button>
       </div>
 
@@ -316,7 +390,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {/* Info Tab */}
+        {/* Info Tab - Client Summary */}
         {activeTab === 'info' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -374,7 +448,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                       setSavingProperty(false);
                     }}
                   >
-                    {savingProperty ? 'Guardando...' : 'Guardar Propiedad Vinculada'}
+                    {savingProperty ? 'Guardando...' : 'Guardar Propiedad'}
                   </Button>
                 )}
               </Card>
@@ -389,27 +463,68 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               </Card>
             )}
 
-            {deals.length > 0 && (
-              <Card className="p-4 border-[#e0ccb0]">
-                <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-                  Deals ({deals.length})
-                </h3>
-                <div className="space-y-2">
-                  {deals.map((deal: any) => (
+            {/* Deals section */}
+            <Card className="p-4 border-[#e0ccb0]">
+              <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
+                Deals ({leadDeals.length})
+              </h3>
+              {leadDeals.length > 0 ? (
+                <div className="space-y-3">
+                  {leadDeals.map((deal: any) => (
                     <div key={deal.id} className="flex items-center justify-between p-3 bg-[#faf5f0] dark:bg-[#111] rounded-lg">
-                      <div>
-                        <p className="font-medium text-black dark:text-white capitalize">{deal.busca}</p>
-                        <p className="text-sm text-gray-500">{deal.propiedad}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#8B4513]/10 rounded-lg flex items-center justify-center">
+                          <Building2 size={18} className="text-[#8B4513]" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-black dark:text-white">{deal.title}</p>
+                          {deal.value && (
+                            <p className="text-sm text-[#8B4513] font-semibold">{formatCurrency(deal.value)}</p>
+                          )}
+                        </div>
                       </div>
-                      <Badge variant={deal.group === 'won' ? 'won' : deal.group === 'lost' ? 'lost' : 'active'}>
-                        {deal.group === 'active' ? 'Seguimiento' : deal.group === 'won' ? 'Potencial' : 'Descartado'}
+                      <Badge variant={deal.stage === 'won' ? 'won' : deal.stage === 'lost' ? 'lost' : 'active'}>
+                        {deal.stage}
                       </Badge>
                     </div>
                   ))}
                 </div>
-              </Card>
-            )}
+              ) : (
+                <div className="text-center py-6">
+                  <DollarSign size={40} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-500">No hay deals asociados</p>
+                </div>
+              )}
+            </Card>
           </div>
+        )}
+
+        {/* Preferences Tab */}
+        {activeTab === 'preferences' && (
+          <Card className="p-6 border-[#e0ccb0]">
+            <h3 className="font-semibold text-sm text-[#8B4513] mb-6 uppercase tracking-wide">
+              Preferencias del Cliente
+            </h3>
+            <ClientPreferences
+              leadId={lead.id}
+              preferences={preferences}
+              onSave={() => refetch()}
+            />
+          </Card>
+        )}
+
+        {/* Timeline Tab */}
+        {activeTab === 'timeline' && (
+          <Card className="p-6 border-[#e0ccb0]">
+            <h3 className="font-semibold text-sm text-[#8B4513] mb-6 uppercase tracking-wide">
+              Linea de Tiempo
+            </h3>
+            <ClientTimeline
+              leadId={lead.id}
+              events={timelineEvents}
+              loading={loading}
+            />
+          </Card>
         )}
 
         {/* WhatsApp Tab */}
@@ -417,7 +532,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           <div className="space-y-6">
             <Card className="p-4 border-[#e0ccb0]">
               <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-                Plantillas Rápidas
+                Plantillas Rapidas
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 {whatsappTemplates.map((template, idx) => (
@@ -445,7 +560,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               />
               <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-gray-500">
-                  Se abrirá WhatsApp con el mensaje
+                  Se abrira WhatsApp con el mensaje
                 </span>
                 <Button
                   onClick={handleSendWhatsApp}
@@ -540,62 +655,6 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           </div>
         )}
 
-        {/* Activity Tab */}
-        {activeTab === 'activity' && (
-          <Card className="p-4 border-[#e0ccb0]">
-            <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-              Historial de Actividad
-            </h3>
-            {loading ? (
-              <div className="animate-pulse space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
-                      <div className="h-3 bg-gray-200 rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : activities.length > 0 ? (
-              <div className="space-y-4">
-                {activities.map((activity: any, idx: number) => (
-                  <div key={activity.id || idx} className="flex gap-4 pb-4 border-b border-[#e0ccb0] last:border-0">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      activity.type === 'whatsapp' ? 'bg-[#25D366]/10' :
-                      activity.type === 'email' ? 'bg-[#8B4513]/10' :
-                      activity.type === 'call' ? 'bg-blue-100' :
-                      'bg-gray-100'
-                    }`}>
-                      {activity.type === 'whatsapp' ? (
-                        <MessageSquare size={18} className="text-[#25D366]" />
-                      ) : activity.type === 'email' ? (
-                        <Mail size={18} className="text-[#8B4513]" />
-                      ) : activity.type === 'call' ? (
-                        <Phone size={18} className="text-blue-600" />
-                      ) : (
-                        <FileText size={18} className="text-gray-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-black dark:text-white">{activity.description}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {activity.userName} • {formatRelativeTime(activity.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Clock size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">No hay actividad registrada</p>
-              </div>
-            )}
-          </Card>
-        )}
-
         {/* Notes Tab */}
         {activeTab === 'notes' && (
           <div className="space-y-6">
@@ -631,7 +690,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                     <div key={note.id || idx} className="p-4 bg-[#faf5f0] dark:bg-[#111] rounded-lg">
                       <p className="text-black dark:text-white whitespace-pre-wrap">{note.content}</p>
                       <p className="text-sm text-gray-500 mt-2">
-                        {note.userName} • {formatRelativeTime(note.createdAt)}
+                        {note.userName} - {formatRelativeTime(note.createdAt)}
                       </p>
                     </div>
                   ))}
