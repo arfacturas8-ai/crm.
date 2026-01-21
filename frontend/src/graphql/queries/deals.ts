@@ -6,6 +6,7 @@ export const DEAL_FRAGMENT = gql`
     id
     title
     leadId
+    propertyId
     stage
     value
     createdAt
@@ -30,6 +31,7 @@ export const GET_DEALS = gql`
         id
         title
         leadId
+        propertyId
         stage
         value
         createdAt
@@ -47,6 +49,7 @@ export const GET_DEALS_BY_STAGE = gql`
         id
         title
         leadId
+        propertyId
         stage
         value
         createdAt
@@ -63,6 +66,7 @@ export const GET_DEAL = gql`
       id
       title
       leadId
+      propertyId
       stage
       value
       createdAt
@@ -79,6 +83,7 @@ export const CREATE_DEAL = gql`
         id
         title
         leadId
+        propertyId
         stage
         value
         createdAt
@@ -97,6 +102,7 @@ export const UPDATE_DEAL = gql`
         id
         title
         leadId
+        propertyId
         stage
         value
         createdAt

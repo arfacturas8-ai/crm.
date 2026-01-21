@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CREATE_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
-import { GET_LEADS, UPDATE_LEAD } from '@/graphql/queries/leads';
+import { GET_LEADS } from '@/graphql/queries/leads';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -14,10 +14,10 @@ import { PropertySelector } from '@/components/ui/PropertySelector';
 import { useUIStore } from '@/store/ui-store';
 import { type Deal } from '@/types';
 
-// Schema matching server: title, leadId, stage, value
+// Schema matching server: title, leadId, stage, value, propertyId
 const dealSchema = z.object({
   title: z.string().min(1, 'Título requerido'),
-  leadId: z.string().min(1, 'Lead requerido'),
+  leadId: z.string().optional(),
   stage: z.enum(['active', 'won', 'lost']),
   value: z.string().optional(),
 });
@@ -47,10 +47,13 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   });
 
   const leads = leadsData?.leads?.nodes || [];
-  const leadOptions = leads.map((lead: any) => ({
-    value: lead.id,
-    label: `${lead.name} - ${lead.mobile || lead.email}`,
-  }));
+  const leadOptions = [
+    { value: '', label: 'Sin lead asociado' },
+    ...leads.map((lead: any) => ({
+      value: lead.id,
+      label: `${lead.name} - ${lead.mobile || lead.email}`,
+    })),
+  ];
 
   // Normalize stage to form values (server might send other stages)
   const normalizeStage = (stage?: string): 'active' | 'won' | 'lost' => {
@@ -63,7 +66,6 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -75,15 +77,13 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     },
   });
 
-  const selectedLeadId = watch('leadId');
-
   // Auto-fill title when property is selected
   useEffect(() => {
     if (selectedProperty && !isEditing) {
       setValue('title', selectedProperty.title);
       // Also set value from property price if available
       if (selectedProperty.propertyPrice) {
-        setValue('value', selectedProperty.propertyPrice);
+        setValue('value', selectedProperty.propertyPrice.toString());
       }
     }
   }, [selectedProperty, setValue, isEditing]);
@@ -92,8 +92,6 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     refetchQueries: ['GetDeals', 'GetDealsByStage', 'GetDashboardStats'],
     awaitRefetchQueries: true,
     onCompleted: (data) => {
-      console.log('CreateDeal response:', data);
-      console.log('Created deal object:', data?.createDeal?.deal);
       if (data?.createDeal?.deal) {
         addNotification({
           type: 'success',
@@ -146,28 +144,9 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     },
   });
 
-  // Update lead's propertyId when a property is selected
-  const [updateLead] = useMutation(UPDATE_LEAD);
-
   const loading = createLoading || updateLoading;
 
   const onSubmit = async (data: DealFormData) => {
-    // If property is selected, update the lead's propertyId
-    if (selectedProperty && data.leadId) {
-      try {
-        await updateLead({
-          variables: {
-            input: {
-              id: data.leadId,
-              propertyId: parseInt(selectedProperty.databaseId, 10),
-            },
-          },
-        });
-      } catch (err) {
-        console.error('Error updating lead property:', err);
-      }
-    }
-
     if (isEditing) {
       updateDeal({
         variables: {
@@ -176,21 +155,20 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
             title: data.title,
             stage: data.stage,
             value: data.value ? parseFloat(data.value) : undefined,
+            propertyId: selectedProperty ? parseInt(selectedProperty.databaseId, 10) : undefined,
           },
         },
       });
     } else {
-      const dealInput = {
-        title: data.title,
-        leadId: parseInt(data.leadId),
-        stage: data.stage,
-        value: data.value ? parseFloat(data.value) : undefined,
-      };
-      console.log('Creating deal with input:', dealInput);
-      console.log('Original leadId from form:', data.leadId);
       createDeal({
         variables: {
-          input: dealInput,
+          input: {
+            title: data.title,
+            leadId: data.leadId ? parseInt(data.leadId, 10) : undefined,
+            stage: data.stage,
+            value: data.value ? parseFloat(data.value) : undefined,
+            propertyId: selectedProperty ? parseInt(selectedProperty.databaseId, 10) : undefined,
+          },
         },
       });
     }
@@ -198,24 +176,18 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Lead Selection */}
-      <Select
-        label="Lead *"
-        options={leadOptions}
-        placeholder="Seleccionar lead..."
-        error={errors.leadId?.message}
-        {...register('leadId')}
-      />
-
-      {/* Property Selector */}
+      {/* Property Selector - Most important */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Vincular Propiedad
+          Propiedad *
         </label>
         <PropertySelector
           selectedProperty={selectedProperty}
           onSelect={setSelectedProperty}
         />
+        <p className="text-xs text-gray-500 mt-1">
+          Selecciona la propiedad para este deal
+        </p>
       </div>
 
       {/* Title */}
@@ -224,6 +196,15 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         placeholder="Ej: Compra casa en Grecia..."
         error={errors.title?.message}
         {...register('title')}
+      />
+
+      {/* Lead Selection - Optional */}
+      <Select
+        label="Lead asociado (opcional)"
+        options={leadOptions}
+        placeholder="Seleccionar lead..."
+        error={errors.leadId?.message}
+        {...register('leadId')}
       />
 
       {/* Stage and Value */}
