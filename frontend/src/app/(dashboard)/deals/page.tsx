@@ -10,6 +10,11 @@ import {
   GripVertical,
   DollarSign,
   Trash2,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Calendar,
 } from 'lucide-react';
 import { GET_DEALS_BY_STAGE, UPDATE_DEAL, DELETE_DEAL } from '@/graphql/queries/deals';
 import { Button } from '@/components/ui/Button';
@@ -18,46 +23,14 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
+import { usePipelineStore, mapLegacyStage } from '@/store/pipeline-store';
 import { cn, formatRelativeTime, formatCurrency } from '@/lib/utils';
 import { type Deal } from '@/types';
 import { DealForm } from '@/components/deals/DealForm';
 import { DealDetail } from '@/components/deals/DealDetail';
+import { PipelineSettings } from '@/components/deals/PipelineSettings';
 
 type ViewMode = 'kanban' | 'list';
-
-// Map server stage values to kanban columns
-const STAGE_TO_COLUMN: Record<string, string> = {
-  // Active/In Progress stages
-  'initial_contact': 'active',
-  'qualified': 'active',
-  'proposal': 'active',
-  'negotiation': 'active',
-  'active': 'active',
-  // Won stages
-  'won': 'won',
-  'closed_won': 'won',
-  // Lost stages
-  'lost': 'lost',
-  'closed_lost': 'lost',
-};
-
-const COLUMNS = [
-  { id: 'active', label: 'En Proceso', color: 'bg-yellow-500' },
-  { id: 'won', label: 'Ganado', color: 'bg-green-500' },
-  { id: 'lost', label: 'Perdido', color: 'bg-red-500' },
-];
-
-const STAGE_LABELS: Record<string, string> = {
-  initial_contact: 'Contacto Inicial',
-  qualified: 'Calificado',
-  proposal: 'Propuesta',
-  negotiation: 'Negociación',
-  active: 'Activo',
-  won: 'Ganado',
-  closed_won: 'Ganado',
-  lost: 'Perdido',
-  closed_lost: 'Perdido',
-};
 
 export default function DealsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
@@ -65,8 +38,11 @@ export default function DealsPage() {
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   const { openModal, closeModal, addNotification } = useUIStore();
+  const { stages } = usePipelineStore();
+  const sortedStages = useMemo(() => [...stages].sort((a, b) => a.order - b.order), [stages]);
 
   // Fetch all deals
   const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
@@ -74,21 +50,37 @@ export default function DealsPage() {
   // All deals from the query
   const allDeals: Deal[] = data?.deals?.nodes || [];
 
-  // Group deals by column
-  const dealsByColumn = useMemo(() => {
-    const grouped: Record<string, Deal[]> = {
-      active: [],
-      won: [],
-      lost: [],
-    };
+  // Group deals by stage (using pipeline stages)
+  const dealsByStage = useMemo(() => {
+    const grouped: Record<string, Deal[]> = {};
+    sortedStages.forEach((stage) => {
+      grouped[stage.id] = [];
+    });
 
     allDeals.forEach((deal) => {
-      const column = STAGE_TO_COLUMN[deal.stage] || 'active';
-      grouped[column].push(deal);
+      const mappedStage = mapLegacyStage(deal.stage);
+      if (grouped[mappedStage]) {
+        grouped[mappedStage].push(deal);
+      } else {
+        // Fallback to first active stage
+        const firstActiveStage = sortedStages.find((s) => s.type === 'active');
+        if (firstActiveStage) {
+          grouped[firstActiveStage.id].push(deal);
+        }
+      }
     });
 
     return grouped;
-  }, [allDeals]);
+  }, [allDeals, sortedStages]);
+
+  // Calculate total value per stage
+  const stageValues = useMemo(() => {
+    const values: Record<string, number> = {};
+    Object.entries(dealsByStage).forEach(([stageId, deals]) => {
+      values[stageId] = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
+    });
+    return values;
+  }, [dealsByStage]);
 
   // Update deal mutation (for moving between columns)
   const [updateDeal] = useMutation(UPDATE_DEAL, {
@@ -120,7 +112,7 @@ export default function DealsPage() {
 
   const handleDelete = (dealId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('¿Estás seguro de eliminar este deal?')) {
+    if (confirm('¿Estas seguro de eliminar este deal?')) {
       deleteDeal({
         variables: {
           input: { id: dealId },
@@ -134,29 +126,27 @@ export default function DealsPage() {
     setDraggedDeal(deal);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnId: string) => {
+  const handleDragOver = (e: React.DragEvent, stageId: string) => {
     e.preventDefault();
-    setDragOverColumn(columnId);
+    setDragOverColumn(stageId);
   };
 
   const handleDragLeave = () => {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumn: string) => {
+  const handleDrop = (e: React.DragEvent, targetStage: string) => {
     e.preventDefault();
     setDragOverColumn(null);
 
     if (draggedDeal) {
-      const currentColumn = STAGE_TO_COLUMN[draggedDeal.stage] || 'active';
-      if (currentColumn !== targetColumn) {
-        // Map column back to stage value
-        const newStage = targetColumn; // active, won, or lost
+      const currentStage = mapLegacyStage(draggedDeal.stage);
+      if (currentStage !== targetStage) {
         updateDeal({
           variables: {
             input: {
               id: draggedDeal.id,
-              stage: newStage,
+              stage: targetStage,
             },
           },
         });
@@ -178,8 +168,33 @@ export default function DealsPage() {
     return deals.filter((deal) => deal.title?.toLowerCase().includes(searchLower));
   };
 
-  const getColumnDeals = (columnId: string) => {
-    return filterDeals(dealsByColumn[columnId] || []);
+  const getStageDeals = (stageId: string) => {
+    return filterDeals(dealsByStage[stageId] || []);
+  };
+
+  // Horizontal scroll for kanban
+  const scrollKanban = (direction: 'left' | 'right') => {
+    const container = document.getElementById('kanban-container');
+    if (container) {
+      const scrollAmount = 320;
+      const newPosition =
+        direction === 'left'
+          ? Math.max(0, scrollPosition - scrollAmount)
+          : scrollPosition + scrollAmount;
+      container.scrollTo({ left: newPosition, behavior: 'smooth' });
+      setScrollPosition(newPosition);
+    }
+  };
+
+  // Get stage label for list view
+  const getStageLabel = (stageId: string) => {
+    const stage = stages.find((s) => s.id === stageId || s.id === mapLegacyStage(stageId));
+    return stage?.label || stageId;
+  };
+
+  const getStageColor = (stageId: string) => {
+    const stage = stages.find((s) => s.id === stageId || s.id === mapLegacyStage(stageId));
+    return stage?.color || 'bg-gray-500';
   };
 
   return (
@@ -187,9 +202,9 @@ export default function DealsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Deals</h1>
+          <h1 className="text-2xl font-bold">Pipeline de Ventas</h1>
           <p className="text-muted-foreground">
-            {allDeals.length} deals en total
+            {allDeals.length} deals | Total: {formatCurrency(allDeals.reduce((sum, d) => sum + (d.value || 0), 0))}
           </p>
         </div>
         <div className="flex gap-2">
@@ -201,6 +216,7 @@ export default function DealsPage() {
                 viewMode === 'kanban' ? 'bg-primary text-white' : 'hover:bg-gray-100'
               )}
               onClick={() => setViewMode('kanban')}
+              title="Vista Kanban"
             >
               <Grid3X3 size={18} />
             </button>
@@ -210,10 +226,14 @@ export default function DealsPage() {
                 viewMode === 'list' ? 'bg-primary text-white' : 'hover:bg-gray-100'
               )}
               onClick={() => setViewMode('list')}
+              title="Vista Lista"
             >
               <List size={18} />
             </button>
           </div>
+          <Button variant="outline" onClick={() => openModal('pipeline-settings')} title="Configurar Pipeline">
+            <Settings size={16} />
+          </Button>
           <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-deal')}>
             Nuevo Deal
           </Button>
@@ -232,103 +252,142 @@ export default function DealsPage() {
 
       {/* Kanban Board */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {COLUMNS.map((column) => {
-            const deals = getColumnDeals(column.id);
-            const isDropTarget = dragOverColumn === column.id;
+        <div className="relative">
+          {/* Navigation arrows for mobile/tablet */}
+          <button
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 rounded-full p-2 shadow-lg hover:bg-white hidden md:block"
+            onClick={() => scrollKanban('left')}
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 rounded-full p-2 shadow-lg hover:bg-white hidden md:block"
+            onClick={() => scrollKanban('right')}
+          >
+            <ChevronRight size={20} />
+          </button>
 
-            return (
-              <div
-                key={column.id}
-                className={cn(
-                  'kanban-column transition-all',
-                  isDropTarget && 'ring-2 ring-primary ring-offset-2'
-                )}
-                onDragOver={(e) => handleDragOver(e, column.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, column.id)}
-              >
-                {/* Column header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className={cn('w-3 h-3 rounded-full', column.color)} />
-                    <h3 className="font-semibold">{column.label}</h3>
-                    <Badge variant="secondary">{deals.length}</Badge>
-                  </div>
-                </div>
+          {/* Kanban container with horizontal scroll */}
+          <div
+            id="kanban-container"
+            className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin"
+            onScroll={(e) => setScrollPosition((e.target as HTMLElement).scrollLeft)}
+          >
+            {sortedStages.map((stage) => {
+              const deals = getStageDeals(stage.id);
+              const isDropTarget = dragOverColumn === stage.id;
+              const stageValue = stageValues[stage.id] || 0;
 
-                {/* Cards */}
-                <div className="space-y-3 flex-1 overflow-y-auto scrollbar-thin">
-                  {loading ? (
-                    [...Array(3)].map((_, i) => (
-                      <div key={i} className="animate-pulse bg-gray-200 rounded-lg h-32" />
-                    ))
-                  ) : deals.length > 0 ? (
-                    deals.map((deal) => (
-                      <div
-                        key={deal.id}
-                        className={cn(
-                          'kanban-card',
-                          draggedDeal?.id === deal.id && 'opacity-50'
-                        )}
-                        draggable
-                        onDragStart={() => handleDragStart(deal)}
-                        onDragEnd={handleDragEnd}
-                        onClick={() => {
-                          setSelectedDeal(deal);
-                          openModal('view-deal');
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <GripVertical
-                              size={16}
-                              className="text-muted-foreground cursor-grab"
-                            />
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                              <span className="text-primary text-sm font-medium">
-                                {deal.title?.charAt(0).toUpperCase() || 'D'}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            className="text-red-400 hover:text-red-600 p-1"
-                            onClick={(e) => handleDelete(deal.id, e)}
-                            title="Eliminar deal"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-
-                        <div className="mt-3">
-                          <p className="font-medium">{deal.title}</p>
-                          {deal.value && (
-                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                              <DollarSign size={14} />
-                              {formatCurrency(deal.value)}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {STAGE_LABELS[deal.stage] || deal.stage}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                          <span className="text-xs text-muted-foreground">
-                            {formatRelativeTime(deal.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      No hay deals en esta columna
-                    </div>
+              return (
+                <div
+                  key={stage.id}
+                  className={cn(
+                    'flex-shrink-0 w-[300px] md:w-[320px] bg-gray-50 rounded-xl p-4 snap-start transition-all min-h-[500px] flex flex-col',
+                    isDropTarget && 'ring-2 ring-primary ring-offset-2 bg-primary/5'
                   )}
+                  onDragOver={(e) => handleDragOver(e, stage.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, stage.id)}
+                >
+                  {/* Column header */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={cn('w-3 h-3 rounded-full', stage.color)} />
+                        <h3 className="font-semibold text-gray-800">{stage.label}</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {deals.length}
+                        </Badge>
+                      </div>
+                    </div>
+                    {stageValue > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                        <DollarSign size={12} />
+                        {formatCurrency(stageValue)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Cards */}
+                  <div className="space-y-3 flex-1 overflow-y-auto scrollbar-thin">
+                    {loading ? (
+                      [...Array(2)].map((_, i) => (
+                        <div key={i} className="animate-pulse bg-gray-200 rounded-lg h-28" />
+                      ))
+                    ) : deals.length > 0 ? (
+                      deals.map((deal) => (
+                        <div
+                          key={deal.id}
+                          className={cn(
+                            'bg-white rounded-lg p-4 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all',
+                            draggedDeal?.id === deal.id && 'opacity-50 rotate-2'
+                          )}
+                          draggable
+                          onDragStart={() => handleDragStart(deal)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => {
+                            setSelectedDeal(deal);
+                            openModal('view-deal');
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <GripVertical
+                                size={16}
+                                className="text-gray-300 cursor-grab active:cursor-grabbing"
+                              />
+                              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <Building2 size={16} className="text-primary" />
+                              </div>
+                            </div>
+                            <button
+                              className="text-gray-300 hover:text-red-500 p-1 transition-colors"
+                              onClick={(e) => handleDelete(deal.id, e)}
+                              title="Eliminar deal"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          <div className="mt-3">
+                            <p className="font-medium text-gray-900 line-clamp-2">{deal.title}</p>
+                            {deal.value && (
+                              <p className="text-lg font-bold text-primary mt-2">
+                                {formatCurrency(deal.value)}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                              <Calendar size={12} />
+                              {formatRelativeTime(deal.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <div className={cn('w-12 h-12 rounded-full flex items-center justify-center mb-2', stage.color, 'bg-opacity-20')}>
+                          <Building2 size={20} className="opacity-50" />
+                        </div>
+                        <p className="text-sm">Sin deals</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick add button */}
+                  <button
+                    className="mt-4 w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    onClick={() => openModal('create-deal')}
+                  >
+                    <Plus size={16} />
+                    <span className="text-sm">Agregar deal</span>
+                  </button>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -339,7 +398,7 @@ export default function DealsPage() {
             <table className="table w-full">
               <thead className="table-header">
                 <tr>
-                  <th className="table-head">Título</th>
+                  <th className="table-head">Titulo</th>
                   <th className="table-head">Valor</th>
                   <th className="table-head">Etapa</th>
                   <th className="table-head">Creado</th>
@@ -357,34 +416,30 @@ export default function DealsPage() {
                   ))
                 ) : (
                   filterDeals(allDeals).map((deal: Deal) => {
-                    const column = STAGE_TO_COLUMN[deal.stage] || 'active';
+                    const mappedStage = mapLegacyStage(deal.stage);
+                    const stageData = stages.find((s) => s.id === mappedStage);
                     return (
-                      <tr key={deal.id} className="table-row">
+                      <tr key={deal.id} className="table-row hover:bg-gray-50">
                         <td className="table-cell">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                              <span className="text-primary text-sm font-medium">
-                                {deal.title?.charAt(0).toUpperCase() || 'D'}
-                              </span>
+                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                              <Building2 size={18} className="text-primary" />
                             </div>
-                            <p className="font-medium">{deal.title}</p>
+                            <div>
+                              <p className="font-medium">{deal.title}</p>
+                            </div>
                           </div>
                         </td>
                         <td className="table-cell">
-                          {deal.value ? formatCurrency(deal.value) : '-'}
+                          <span className="font-semibold text-primary">
+                            {deal.value ? formatCurrency(deal.value) : '-'}
+                          </span>
                         </td>
                         <td className="table-cell">
-                          <Badge
-                            variant={
-                              column === 'won'
-                                ? 'won'
-                                : column === 'lost'
-                                ? 'lost'
-                                : 'active'
-                            }
-                          >
-                            {STAGE_LABELS[deal.stage] || deal.stage}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <div className={cn('w-2 h-2 rounded-full', stageData?.color || 'bg-gray-400')} />
+                            <span>{getStageLabel(deal.stage)}</span>
+                          </div>
                         </td>
                         <td className="table-cell text-muted-foreground">
                           {formatRelativeTime(deal.createdAt)}
@@ -442,6 +497,11 @@ export default function DealsPage() {
             }}
           />
         )}
+      </Modal>
+
+      {/* Pipeline Settings Modal */}
+      <Modal id="pipeline-settings" title="Configurar Pipeline" size="lg">
+        <PipelineSettings />
       </Modal>
     </div>
   );

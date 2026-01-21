@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,13 +12,14 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { PropertySelector } from '@/components/ui/PropertySelector';
 import { useUIStore } from '@/store/ui-store';
+import { usePipelineStore, mapLegacyStage } from '@/store/pipeline-store';
 import { type Deal } from '@/types';
 
 // Schema matching server: title, leadId, stage, value, propertyId
 const dealSchema = z.object({
-  title: z.string().min(1, 'Título requerido'),
+  title: z.string().min(1, 'Titulo requerido'),
   leadId: z.string().optional(),
-  stage: z.enum(['active', 'won', 'lost']),
+  stage: z.string().min(1, 'Etapa requerida'),
   value: z.string().optional(),
 });
 
@@ -30,16 +31,21 @@ interface DealFormProps {
   onSuccess: () => void;
 }
 
-const STAGE_OPTIONS = [
-  { value: 'active', label: 'Activo' },
-  { value: 'won', label: 'Ganado' },
-  { value: 'lost', label: 'Perdido' },
-];
-
 export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const { addNotification } = useUIStore();
+  const { stages } = usePipelineStore();
   const isEditing = !!deal;
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
+
+  // Get stage options from pipeline store
+  const stageOptions = useMemo(() => {
+    return [...stages]
+      .sort((a, b) => a.order - b.order)
+      .map((stage) => ({
+        value: stage.id,
+        label: stage.label,
+      }));
+  }, [stages]);
 
   // Fetch leads for dropdown
   const { data: leadsData } = useQuery(GET_LEADS, {
@@ -55,11 +61,14 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     })),
   ];
 
-  // Normalize stage to form values (server might send other stages)
-  const normalizeStage = (stage?: string): 'active' | 'won' | 'lost' => {
-    if (stage === 'won' || stage === 'closed_won') return 'won';
-    if (stage === 'lost' || stage === 'closed_lost') return 'lost';
-    return 'active';
+  // Get default stage (first non-terminal stage)
+  const getDefaultStage = (): string => {
+    const mappedStage = deal?.stage ? mapLegacyStage(deal.stage) : null;
+    if (mappedStage && stages.some((s) => s.id === mappedStage)) {
+      return mappedStage;
+    }
+    const firstActiveStage = stages.find((s) => !s.isTerminal);
+    return firstActiveStage?.id || 'new';
   };
 
   const {
@@ -72,7 +81,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     defaultValues: {
       title: deal?.title || '',
       leadId: deal?.leadId?.toString() || leadId || '',
-      stage: normalizeStage(deal?.stage),
+      stage: getDefaultStage(),
       value: deal?.value?.toString() || '',
     },
   });
@@ -211,7 +220,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
           label="Etapa *"
-          options={STAGE_OPTIONS}
+          options={stageOptions}
           error={errors.stage?.message}
           {...register('stage')}
         />

@@ -38,23 +38,29 @@ export interface Lead {
 
 // Deal Types - matches server schema (includes all possible server values)
 export type DealStage =
-  | 'active'
-  | 'won'
-  | 'lost'
-  | 'initial_contact'
+  | 'new'
+  | 'contacted'
   | 'qualified'
+  | 'visit'
   | 'proposal'
   | 'negotiation'
+  | 'won'
+  | 'lost'
+  // Legacy stages for backwards compatibility
+  | 'active'
+  | 'initial_contact'
   | 'closed_won'
   | 'closed_lost';
 
 export interface Deal {
   id: string;
   title: string;
-  leadId: number;
+  leadId?: number;
+  propertyId?: number;
   stage: DealStage;
   value?: number;
   createdAt: string;
+  notes?: string;
 }
 
 // Enquiry Types
@@ -162,13 +168,17 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
 
 // Deal Stage Labels (Spanish)
 export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
-  active: 'Activo',
-  won: 'Ganado',
-  lost: 'Perdido',
-  initial_contact: 'Contacto Inicial',
+  new: 'Nuevo',
+  contacted: 'Contactado',
   qualified: 'Calificado',
+  visit: 'Visita Programada',
   proposal: 'Propuesta',
   negotiation: 'Negociacion',
+  won: 'Ganado',
+  lost: 'Perdido',
+  // Legacy stages
+  active: 'Activo',
+  initial_contact: 'Contacto Inicial',
   closed_won: 'Ganado',
   closed_lost: 'Perdido',
 };
