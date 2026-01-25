@@ -130,7 +130,7 @@ export default function ActivitiesPage() {
   };
 
   const handleDelete = (activityId: string) => {
-    if (confirm('¿Estas seguro de eliminar esta actividad?')) {
+    if (confirm('Estas seguro de eliminar esta actividad?')) {
       deleteActivity(activityId);
       addNotification({
         type: 'success',
@@ -163,12 +163,12 @@ export default function ActivitiesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 lg:space-y-6 bg-white min-h-full">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 lg:gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Actividades</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Actividades</h1>
+          <p className="text-sm text-gray-500">
             {pendingActivities.length} pendientes
             {overdueActivities.length > 0 && (
               <span className="text-red-500 ml-2">
@@ -179,29 +179,29 @@ export default function ActivitiesPage() {
         </div>
         <div className="flex gap-2">
           {/* View toggle */}
-          <div className="flex border rounded-lg overflow-hidden">
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
             <button
               className={cn(
                 'px-3 py-2 transition-colors',
-                viewMode === 'list' ? 'bg-primary text-white' : 'hover:bg-gray-100'
+                viewMode === 'list' ? 'bg-[#8B4513] text-white' : 'text-gray-600 hover:bg-gray-50'
               )}
               onClick={() => setViewMode('list')}
               title="Vista Lista"
             >
-              <List size={18} />
+              <List size={16} />
             </button>
             <button
               className={cn(
                 'px-3 py-2 transition-colors',
-                viewMode === 'calendar' ? 'bg-primary text-white' : 'hover:bg-gray-100'
+                viewMode === 'calendar' ? 'bg-[#8B4513] text-white' : 'text-gray-600 hover:bg-gray-50'
               )}
               onClick={() => setViewMode('calendar')}
               title="Vista Calendario"
             >
-              <CalendarIcon size={18} />
+              <CalendarIcon size={16} />
             </button>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-activity')}>
+          <Button leftIcon={<Plus size={14} />} onClick={() => openModal('create-activity')} className="text-xs lg:text-sm">
             Nueva Actividad
           </Button>
         </div>
@@ -209,14 +209,14 @@ export default function ActivitiesPage() {
 
       {/* Overdue Alert */}
       {overdueActivities.length > 0 && (
-        <Card className="p-4 border-red-200 bg-red-50">
+        <Card className="p-3 lg:p-4 border-red-200 bg-red-50">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="text-red-500" size={24} />
+            <AlertTriangle className="text-red-500 flex-shrink-0" size={20} />
             <div>
-              <h3 className="font-semibold text-red-700">
+              <h3 className="font-semibold text-red-700 text-sm lg:text-base">
                 {overdueActivities.length} actividad(es) vencida(s)
               </h3>
-              <p className="text-sm text-red-600">
+              <p className="text-xs lg:text-sm text-red-600 hidden sm:block">
                 Tienes actividades pendientes que ya pasaron su fecha de vencimiento.
               </p>
             </div>
@@ -228,14 +228,14 @@ export default function ActivitiesPage() {
       {viewMode === 'list' && (
         <div className="space-y-4">
           {/* Pending Activities */}
-          <Card className="p-0 overflow-hidden">
-            <div className="p-4 border-b bg-gray-50">
-              <h2 className="font-semibold flex items-center gap-2">
-                <Clock size={18} className="text-amber-500" />
+          <Card className="p-0 overflow-hidden bg-white border-gray-200">
+            <div className="p-3 lg:p-4 border-b border-gray-100 bg-gray-50">
+              <h2 className="font-semibold flex items-center gap-2 text-sm lg:text-base text-gray-900">
+                <Clock size={16} className="text-amber-500" />
                 Pendientes ({pendingActivities.length})
               </h2>
             </div>
-            <div className="divide-y">
+            <div className="divide-y divide-gray-100">
               {pendingActivities.length > 0 ? (
                 pendingActivities.map((activity) => {
                   const Icon = ACTIVITY_TYPE_ICONS[activity.type];
@@ -246,40 +246,38 @@ export default function ActivitiesPage() {
                     <div
                       key={activity.id}
                       className={cn(
-                        'p-4 hover:bg-gray-50 transition-colors',
+                        'p-3 lg:p-4 hover:bg-gray-50 transition-colors',
                         isOverdue && 'bg-red-50/50'
                       )}
                     >
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-3 lg:gap-4">
                         <button
                           onClick={() => handleComplete(activity.id)}
-                          className="mt-1 text-gray-300 hover:text-green-500 transition-colors"
+                          className="mt-0.5 text-gray-300 hover:text-green-500 transition-colors flex-shrink-0"
                         >
-                          <Circle size={20} />
+                          <Circle size={18} />
                         </button>
 
                         <div
                           className={cn(
-                            'w-10 h-10 rounded-lg flex items-center justify-center',
+                            'w-8 h-8 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center flex-shrink-0',
                             getPriorityColor(activity.priority)
                           )}
                         >
-                          <Icon size={20} />
+                          <Icon size={16} className="lg:w-5 lg:h-5" />
                         </div>
 
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-medium">{activity.title}</h3>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-medium text-gray-900 text-sm lg:text-base">{activity.title}</h3>
                               {activity.description && (
-                                <p className="text-sm text-gray-500 mt-1">
+                                <p className="text-xs lg:text-sm text-gray-500 mt-0.5 line-clamp-1">
                                   {activity.description}
                                 </p>
                               )}
-                              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  {ACTIVITY_TYPE_LABELS[activity.type]}
-                                </span>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500">
+                                <span>{ACTIVITY_TYPE_LABELS[activity.type]}</span>
                                 {activity.dueDate && (
                                   <span
                                     className={cn(
@@ -287,26 +285,26 @@ export default function ActivitiesPage() {
                                       isOverdue && 'text-red-500 font-medium'
                                     )}
                                   >
-                                    <CalendarIcon size={14} />
+                                    <CalendarIcon size={12} />
                                     {formatDate(activity.dueDate)}
                                     {activity.dueTime && ` ${activity.dueTime}`}
                                   </span>
                                 )}
                                 {activity.leadName && (
-                                  <span className="flex items-center gap-1">
-                                    <User size={14} />
+                                  <span className="flex items-center gap-1 hidden sm:flex">
+                                    <User size={12} />
                                     {activity.leadName}
                                   </span>
                                 )}
                                 {activity.dealTitle && (
-                                  <span className="flex items-center gap-1">
-                                    <Building2 size={14} />
+                                  <span className="flex items-center gap-1 hidden sm:flex">
+                                    <Building2 size={12} />
                                     {activity.dealTitle}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                               <Badge
                                 variant={
                                   activity.priority === 'high'
@@ -315,6 +313,7 @@ export default function ActivitiesPage() {
                                     ? 'active'
                                     : 'won'
                                 }
+                                className="text-xs"
                               >
                                 {ACTIVITY_PRIORITY_LABELS[activity.priority]}
                               </Badge>
@@ -322,7 +321,7 @@ export default function ActivitiesPage() {
                                 onClick={() => handleDelete(activity.id)}
                                 className="text-gray-300 hover:text-red-500 p-1 transition-colors"
                               >
-                                <Trash2 size={16} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>
@@ -332,24 +331,23 @@ export default function ActivitiesPage() {
                   );
                 })
               ) : (
-                <div className="p-8 text-center text-gray-500">
-                  <CheckCircle size={40} className="mx-auto mb-3 text-green-500" />
-                  <p>No tienes actividades pendientes</p>
+                <div className="p-6 lg:p-8 text-center text-gray-500">
+                  <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
+                  <p className="text-sm">No tienes actividades pendientes</p>
                 </div>
               )}
             </div>
           </Card>
 
           {/* Completed Activities */}
-          <Card className="p-0 overflow-hidden">
-            <div className="p-4 border-b bg-gray-50">
-              <h2 className="font-semibold flex items-center gap-2">
-                <CheckCircle size={18} className="text-green-500" />
-                Completadas (
-                {activities.filter((a) => a.status === 'completed').length})
+          <Card className="p-0 overflow-hidden bg-white border-gray-200">
+            <div className="p-3 lg:p-4 border-b border-gray-100 bg-gray-50">
+              <h2 className="font-semibold flex items-center gap-2 text-sm lg:text-base text-gray-900">
+                <CheckCircle size={16} className="text-green-500" />
+                Completadas ({activities.filter((a) => a.status === 'completed').length})
               </h2>
             </div>
-            <div className="divide-y">
+            <div className="divide-y divide-gray-100">
               {activities
                 .filter((a) => a.status === 'completed')
                 .slice(0, 10)
@@ -358,26 +356,26 @@ export default function ActivitiesPage() {
                   return (
                     <div
                       key={activity.id}
-                      className="p-4 hover:bg-gray-50 transition-colors opacity-60"
+                      className="p-3 lg:p-4 hover:bg-gray-50 transition-colors opacity-60"
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="mt-1 text-green-500">
-                          <CheckCircle size={20} />
+                      <div className="flex items-start gap-3 lg:gap-4">
+                        <div className="mt-0.5 text-green-500 flex-shrink-0">
+                          <CheckCircle size={18} />
                         </div>
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <Icon size={20} className="text-gray-400" />
+                        <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <Icon size={16} className="text-gray-400" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium line-through">{activity.title}</h3>
-                          <p className="text-sm text-gray-400 mt-1">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium line-through text-gray-500 text-sm">{activity.title}</h3>
+                          <p className="text-xs text-gray-400 mt-0.5">
                             Completada el {formatDate(activity.completedAt || '')}
                           </p>
                         </div>
                         <button
                           onClick={() => handleDelete(activity.id)}
-                          className="text-gray-300 hover:text-red-500 p-1 transition-colors"
+                          className="text-gray-300 hover:text-red-500 p-1 transition-colors flex-shrink-0"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -390,32 +388,32 @@ export default function ActivitiesPage() {
 
       {/* Calendar View */}
       {viewMode === 'calendar' && (
-        <Card className="p-0 overflow-hidden">
+        <Card className="p-0 overflow-hidden bg-white border-gray-200">
           {/* Calendar Header */}
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between p-3 lg:p-4 border-b border-gray-100">
             <button
               onClick={() => navigateMonth('prev')}
               className="p-2 hover:bg-gray-100 rounded-lg"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-base lg:text-lg font-semibold text-gray-900">
               {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
             <button
               onClick={() => navigateMonth('next')}
               className="p-2 hover:bg-gray-100 rounded-lg"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={18} />
             </button>
           </div>
 
           {/* Days of week header */}
-          <div className="grid grid-cols-7 border-b">
+          <div className="grid grid-cols-7 border-b border-gray-100">
             {DAYS_OF_WEEK.map((day) => (
               <div
                 key={day}
-                className="p-2 text-center text-sm font-medium text-gray-500 border-r last:border-r-0"
+                className="p-2 text-center text-xs font-medium text-gray-500 border-r border-gray-100 last:border-r-0"
               >
                 {day}
               </div>
@@ -426,39 +424,33 @@ export default function ActivitiesPage() {
           <div className="grid grid-cols-7">
             {calendarDays.map((day, idx) => {
               const dayActivities = getActivitiesForDate(day.date);
-              const hasOverdue = dayActivities.some(
-                (a) =>
-                  a.status === 'pending' &&
-                  a.dueDate &&
-                  a.dueDate < new Date().toISOString().split('T')[0]
-              );
 
               return (
                 <div
                   key={idx}
                   className={cn(
-                    'min-h-[100px] p-2 border-r border-b last:border-r-0',
+                    'min-h-[70px] lg:min-h-[100px] p-1.5 lg:p-2 border-r border-b border-gray-100 last:border-r-0',
                     !day.isCurrentMonth && 'bg-gray-50 text-gray-400',
                     isToday(day.date) && 'bg-[#8B4513]/5'
                   )}
                 >
                   <div
                     className={cn(
-                      'text-sm font-medium mb-1',
+                      'text-xs font-medium mb-1',
                       isToday(day.date) &&
-                        'w-6 h-6 bg-[#8B4513] text-white rounded-full flex items-center justify-center'
+                        'w-5 h-5 lg:w-6 lg:h-6 bg-[#8B4513] text-white rounded-full flex items-center justify-center'
                     )}
                   >
                     {day.date.getDate()}
                   </div>
-                  <div className="space-y-1">
-                    {dayActivities.slice(0, 3).map((activity) => {
+                  <div className="space-y-0.5">
+                    {dayActivities.slice(0, 2).map((activity) => {
                       const Icon = ACTIVITY_TYPE_ICONS[activity.type];
                       return (
                         <div
                           key={activity.id}
                           className={cn(
-                            'text-xs p-1 rounded flex items-center gap-1 truncate cursor-pointer hover:opacity-80',
+                            'text-xs p-0.5 lg:p-1 rounded flex items-center gap-1 truncate cursor-pointer hover:opacity-80',
                             activity.status === 'completed'
                               ? 'bg-gray-100 text-gray-400 line-through'
                               : getPriorityColor(activity.priority)
@@ -468,14 +460,14 @@ export default function ActivitiesPage() {
                             openModal('view-activity');
                           }}
                         >
-                          <Icon size={12} />
-                          <span className="truncate">{activity.title}</span>
+                          <Icon size={10} className="flex-shrink-0" />
+                          <span className="truncate hidden sm:inline">{activity.title}</span>
                         </div>
                       );
                     })}
-                    {dayActivities.length > 3 && (
+                    {dayActivities.length > 2 && (
                       <div className="text-xs text-gray-500 text-center">
-                        +{dayActivities.length - 3} mas
+                        +{dayActivities.length - 2}
                       </div>
                     )}
                   </div>
@@ -501,57 +493,57 @@ export default function ActivitiesPage() {
                 return (
                   <div
                     className={cn(
-                      'w-12 h-12 rounded-lg flex items-center justify-center',
+                      'w-10 h-10 lg:w-12 lg:h-12 rounded-lg flex items-center justify-center',
                       getPriorityColor(selectedActivity.priority)
                     )}
                   >
-                    <Icon size={24} />
+                    <Icon size={20} className="lg:w-6 lg:h-6" />
                   </div>
                 );
               })()}
               <div>
-                <h3 className="font-semibold text-lg">{selectedActivity.title}</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-semibold text-base lg:text-lg text-gray-900">{selectedActivity.title}</h3>
+                <p className="text-xs lg:text-sm text-gray-500">
                   {ACTIVITY_TYPE_LABELS[selectedActivity.type]}
                 </p>
               </div>
             </div>
 
             {selectedActivity.description && (
-              <p className="text-gray-600">{selectedActivity.description}</p>
+              <p className="text-sm text-gray-600">{selectedActivity.description}</p>
             )}
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 lg:gap-4 text-sm">
               {selectedActivity.dueDate && (
                 <div>
-                  <span className="text-gray-500">Fecha:</span>
-                  <p className="font-medium">
+                  <span className="text-gray-500 text-xs">Fecha:</span>
+                  <p className="font-medium text-gray-900">
                     {formatDate(selectedActivity.dueDate)}
                     {selectedActivity.dueTime && ` a las ${selectedActivity.dueTime}`}
                   </p>
                 </div>
               )}
               <div>
-                <span className="text-gray-500">Prioridad:</span>
-                <p className="font-medium">
+                <span className="text-gray-500 text-xs">Prioridad:</span>
+                <p className="font-medium text-gray-900">
                   {ACTIVITY_PRIORITY_LABELS[selectedActivity.priority]}
                 </p>
               </div>
               {selectedActivity.leadName && (
                 <div>
-                  <span className="text-gray-500">Lead:</span>
-                  <p className="font-medium">{selectedActivity.leadName}</p>
+                  <span className="text-gray-500 text-xs">Lead:</span>
+                  <p className="font-medium text-gray-900">{selectedActivity.leadName}</p>
                 </div>
               )}
               {selectedActivity.dealTitle && (
                 <div>
-                  <span className="text-gray-500">Deal:</span>
-                  <p className="font-medium">{selectedActivity.dealTitle}</p>
+                  <span className="text-gray-500 text-xs">Deal:</span>
+                  <p className="font-medium text-gray-900">{selectedActivity.dealTitle}</p>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-100">
               {selectedActivity.status === 'pending' && (
                 <Button
                   variant="outline"
@@ -559,19 +551,20 @@ export default function ActivitiesPage() {
                     handleComplete(selectedActivity.id);
                     closeModal();
                   }}
-                  leftIcon={<CheckCircle size={16} />}
+                  leftIcon={<CheckCircle size={14} />}
+                  className="text-sm border-gray-200"
                 >
                   Marcar Completada
                 </Button>
               )}
               <Button
                 variant="outline"
-                className="text-red-500 border-red-200 hover:bg-red-50"
+                className="text-red-500 border-red-200 hover:bg-red-50 text-sm"
                 onClick={() => {
                   handleDelete(selectedActivity.id);
                   closeModal();
                 }}
-                leftIcon={<Trash2 size={16} />}
+                leftIcon={<Trash2 size={14} />}
               >
                 Eliminar
               </Button>

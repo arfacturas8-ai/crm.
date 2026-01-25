@@ -182,7 +182,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       variables: {
         input: {
           id: deal.id,
-          propertyId: parseInt(selectedProperty.databaseId, 10),
+          propertyId: selectedProperty.databaseId,
         },
       },
     });

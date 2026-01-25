@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Building2,
-  Phone,
   CalendarCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -80,7 +79,6 @@ function StatCard({
   subtitle,
   icon: Icon,
   href,
-  trend,
   color = 'primary',
 }: {
   title: string;
@@ -88,11 +86,10 @@ function StatCard({
   subtitle?: string;
   icon: React.ComponentType<any>;
   href: string;
-  trend?: { value: number; label: string };
   color?: 'primary' | 'green' | 'amber' | 'red';
 }) {
   const colorClasses = {
-    primary: 'bg-[#f0e6d8] text-[#8B4513]',
+    primary: 'bg-[#8B4513]/10 text-[#8B4513]',
     green: 'bg-green-100 text-green-600',
     amber: 'bg-amber-100 text-amber-600',
     red: 'bg-red-100 text-red-600',
@@ -100,27 +97,16 @@ function StatCard({
 
   return (
     <Link href={href}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer border-[#e0ccb0] h-full">
-        <CardContent className="p-6">
+      <Card className="hover:shadow-md transition-shadow cursor-pointer bg-white border-gray-200 h-full">
+        <CardContent className="p-4 lg:p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm text-gray-500">{title}</p>
-              <p className="text-3xl font-bold mt-1 text-black dark:text-white">{value}</p>
-              {subtitle && <p className="text-sm text-gray-400 mt-1">{subtitle}</p>}
-              {trend && (
-                <div
-                  className={cn(
-                    'text-xs mt-2 flex items-center gap-1',
-                    trend.value >= 0 ? 'text-green-600' : 'text-red-600'
-                  )}
-                >
-                  <TrendingUp size={12} className={trend.value < 0 ? 'rotate-180' : ''} />
-                  {Math.abs(trend.value)}% {trend.label}
-                </div>
-              )}
+              <p className="text-xs lg:text-sm text-gray-500">{title}</p>
+              <p className="text-xl lg:text-3xl font-bold mt-1 text-gray-900">{value}</p>
+              {subtitle && <p className="text-xs lg:text-sm text-gray-400 mt-1">{subtitle}</p>}
             </div>
-            <div className={cn('p-3 rounded-xl', colorClasses[color])}>
-              <Icon size={24} />
+            <div className={cn('p-2 lg:p-3 rounded-xl', colorClasses[color])}>
+              <Icon size={20} className="lg:w-6 lg:h-6" />
             </div>
           </div>
         </CardContent>
@@ -159,15 +145,15 @@ function PipelineChart({ deals, stages }: { deals: any[]; stages: any[] }) {
         <div key={stage.id} className="space-y-1">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
-              <div className={cn('w-3 h-3 rounded-full', stage.color)} />
-              <span className="text-gray-700">{stage.label}</span>
-              <Badge variant="secondary" className="text-xs">
+              <div className={cn('w-2.5 h-2.5 rounded-full', stage.color)} />
+              <span className="text-gray-700 text-xs lg:text-sm">{stage.label}</span>
+              <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                 {stage.count}
-              </Badge>
+              </span>
             </div>
-            <span className="font-medium">{formatCurrency(stage.value)}</span>
+            <span className="font-medium text-xs lg:text-sm">{formatCurrency(stage.value)}</span>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
               className={cn('h-full rounded-full transition-all', stage.color)}
               style={{ width: `${(stage.value / maxValue) * 100}%` }}
@@ -202,15 +188,15 @@ function LeadSourceChart({ leads }: { leads: any[] }) {
   const colors = ['bg-[#8B4513]', 'bg-amber-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {sourceData.map((source, idx) => (
-        <div key={source.source} className="flex items-center justify-between">
+        <div key={source.source} className="flex items-center justify-between py-1">
           <div className="flex items-center gap-2">
-            <div className={cn('w-3 h-3 rounded-full', colors[idx])} />
-            <span className="text-sm text-gray-700">{source.label}</span>
+            <div className={cn('w-2 h-2 rounded-full', colors[idx])} />
+            <span className="text-xs lg:text-sm text-gray-700">{source.label}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{source.count}</span>
+            <span className="text-xs lg:text-sm font-medium">{source.count}</span>
             <span className="text-xs text-gray-400">({source.percentage}%)</span>
           </div>
         </div>
@@ -263,9 +249,9 @@ export default function DashboardPage() {
   }, [allLeads, allDeals]);
 
   return (
-    <div className="space-y-6">
-      {/* Stats Grid - Row 1 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-4 lg:space-y-6 bg-white min-h-full">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
           title="Total Leads"
           value={loading ? '...' : stats.totalLeads}
@@ -303,21 +289,21 @@ export default function DashboardPage() {
       {/* Activities Alert */}
       {overdueActivities.length > 0 && (
         <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 lg:p-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <AlertTriangle className="text-red-500" size={24} />
+                <AlertTriangle className="text-red-500 flex-shrink-0" size={20} />
                 <div>
-                  <h3 className="font-semibold text-red-700">
+                  <h3 className="font-semibold text-red-700 text-sm lg:text-base">
                     {overdueActivities.length} actividad(es) vencida(s)
                   </h3>
-                  <p className="text-sm text-red-600">
+                  <p className="text-xs lg:text-sm text-red-600 hidden sm:block">
                     Tienes tareas pendientes que requieren atencion inmediata.
                   </p>
                 </div>
               </div>
               <Link href="/activities">
-                <Badge variant="lost" className="cursor-pointer hover:opacity-80">
+                <Badge variant="lost" className="cursor-pointer hover:opacity-80 whitespace-nowrap text-xs">
                   Ver actividades
                 </Badge>
               </Link>
@@ -327,29 +313,29 @@ export default function DashboardPage() {
       )}
 
       {/* Second Row - Pipeline & Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Pipeline Overview */}
-        <Card className="lg:col-span-2 border-[#e0ccb0]">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg text-black dark:text-white flex items-center gap-2">
-              <Kanban size={20} className="text-[#8B4513]" />
+        <Card className="lg:col-span-2 bg-white border-gray-200">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 lg:px-6 pt-4">
+            <CardTitle className="text-base lg:text-lg text-gray-900 flex items-center gap-2">
+              <Kanban size={18} className="text-[#8B4513]" />
               Pipeline de Ventas
             </CardTitle>
             <Link
               href="/deals"
-              className="text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
+              className="text-xs lg:text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
             >
               Ver pipeline
               <ArrowRight size={14} />
             </Link>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 lg:px-6 pb-4">
             {loading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="animate-pulse space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-1/2" />
-                    <div className="h-2 bg-gray-200 rounded" />
+                    <div className="h-4 bg-gray-100 rounded w-1/2" />
+                    <div className="h-1.5 bg-gray-100 rounded" />
                   </div>
                 ))}
               </div>
@@ -360,37 +346,37 @@ export default function DashboardPage() {
         </Card>
 
         {/* Activities Summary */}
-        <Card className="border-[#e0ccb0]">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg text-black dark:text-white flex items-center gap-2">
-              <CalendarCheck size={20} className="text-[#8B4513]" />
+        <Card className="bg-white border-gray-200">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 lg:px-6 pt-4">
+            <CardTitle className="text-base lg:text-lg text-gray-900 flex items-center gap-2">
+              <CalendarCheck size={18} className="text-[#8B4513]" />
               Actividades
             </CardTitle>
             <Link
               href="/activities"
-              className="text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
+              className="text-xs lg:text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
             >
               Ver todas
               <ArrowRight size={14} />
             </Link>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+          <CardContent className="px-4 lg:px-6 pb-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2 lg:p-3 bg-amber-50 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <Clock size={18} className="text-amber-600" />
-                  <span className="text-sm font-medium">Pendientes</span>
+                  <Clock size={16} className="text-amber-600" />
+                  <span className="text-xs lg:text-sm font-medium">Pendientes</span>
                 </div>
-                <span className="text-2xl font-bold text-amber-600">
+                <span className="text-lg lg:text-2xl font-bold text-amber-600">
                   {pendingActivities.length}
                 </span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <div className="flex items-center justify-between p-2 lg:p-3 bg-red-50 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle size={18} className="text-red-600" />
-                  <span className="text-sm font-medium">Vencidas</span>
+                  <AlertTriangle size={16} className="text-red-600" />
+                  <span className="text-xs lg:text-sm font-medium">Vencidas</span>
                 </div>
-                <span className="text-2xl font-bold text-red-600">
+                <span className="text-lg lg:text-2xl font-bold text-red-600">
                   {overdueActivities.length}
                 </span>
               </div>
@@ -399,11 +385,11 @@ export default function DashboardPage() {
                 {pendingActivities.slice(0, 3).map((activity) => (
                   <div
                     key={activity.id}
-                    className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0"
+                    className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0"
                   >
                     <div
                       className={cn(
-                        'w-2 h-2 rounded-full',
+                        'w-1.5 h-1.5 rounded-full flex-shrink-0',
                         activity.priority === 'high'
                           ? 'bg-red-500'
                           : activity.priority === 'medium'
@@ -411,7 +397,7 @@ export default function DashboardPage() {
                           : 'bg-green-500'
                       )}
                     />
-                    <span className="text-sm truncate flex-1">{activity.title}</span>
+                    <span className="text-xs lg:text-sm truncate flex-1">{activity.title}</span>
                   </div>
                 ))}
               </div>
@@ -421,20 +407,20 @@ export default function DashboardPage() {
       </div>
 
       {/* Third Row - Lead Sources & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Lead Sources */}
-        <Card className="border-[#e0ccb0]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-black dark:text-white flex items-center gap-2">
-              <Users size={20} className="text-[#8B4513]" />
+        <Card className="bg-white border-gray-200">
+          <CardHeader className="pb-2 px-4 lg:px-6 pt-4">
+            <CardTitle className="text-base lg:text-lg text-gray-900 flex items-center gap-2">
+              <Users size={18} className="text-[#8B4513]" />
               Origen de Leads
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 lg:px-6 pb-4">
             {loading ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="animate-pulse h-4 bg-gray-200 rounded" />
+                  <div key={i} className="animate-pulse h-4 bg-gray-100 rounded" />
                 ))}
               </div>
             ) : (
@@ -444,47 +430,47 @@ export default function DashboardPage() {
         </Card>
 
         {/* Recent Leads */}
-        <Card className="border-[#e0ccb0]">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg text-black dark:text-white">Leads Recientes</CardTitle>
+        <Card className="bg-white border-gray-200">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 lg:px-6 pt-4">
+            <CardTitle className="text-base lg:text-lg text-gray-900">Leads Recientes</CardTitle>
             <Link
               href="/leads"
-              className="text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
+              className="text-xs lg:text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
             >
               Ver todos
               <ArrowRight size={14} />
             </Link>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 lg:px-6 pb-4">
             {loading ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="animate-pulse flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#e0ccb0] rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-[#e0ccb0] rounded w-3/4" />
-                      <div className="h-3 bg-[#e0ccb0] rounded w-1/2" />
+                    <div className="w-8 h-8 bg-gray-100 rounded-full" />
+                    <div className="flex-1 space-y-1">
+                      <div className="h-3 bg-gray-100 rounded w-3/4" />
+                      <div className="h-2 bg-gray-100 rounded w-1/2" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : recentLeads.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {recentLeads.map((lead: any) => (
                   <Link
                     key={lead.id}
                     href={`/leads?id=${lead.id}`}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-[#faf5f0] transition-colors"
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#8B4513] rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-medium">
+                    <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
+                      <div className="w-7 h-7 lg:w-8 lg:h-8 bg-[#8B4513] rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs lg:text-sm font-medium">
                           {lead.name?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-black dark:text-white">{lead.name}</p>
-                        <p className="text-xs text-gray-500">
+                      <div className="min-w-0">
+                        <p className="text-xs lg:text-sm font-medium text-gray-900 truncate">{lead.name}</p>
+                        <p className="text-xs text-gray-500 truncate">
                           {formatRelativeTime(lead.createdAt)}
                         </p>
                       </div>
@@ -494,63 +480,63 @@ export default function DashboardPage() {
                         href={getWhatsAppLink(lead.mobile)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors"
+                        className="p-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors flex-shrink-0"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MessageSquare size={14} />
+                        <MessageSquare size={12} />
                       </a>
                     )}
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6">
-                <Users className="w-10 h-10 mx-auto text-[#cca87a] mb-2" />
-                <p className="text-gray-500 text-sm">No hay leads recientes</p>
+              <div className="text-center py-4">
+                <Users className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-gray-500 text-xs">No hay leads recientes</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Recent Deals */}
-        <Card className="border-[#e0ccb0]">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg text-black dark:text-white">Deals Recientes</CardTitle>
+        <Card className="bg-white border-gray-200 md:col-span-2 lg:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 lg:px-6 pt-4">
+            <CardTitle className="text-base lg:text-lg text-gray-900">Deals Recientes</CardTitle>
             <Link
               href="/deals"
-              className="text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
+              className="text-xs lg:text-sm text-[#8B4513] hover:text-[#6b350f] flex items-center gap-1"
             >
               Ver todos
               <ArrowRight size={14} />
             </Link>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 lg:px-6 pb-4">
             {loading ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="animate-pulse flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#e0ccb0] rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-[#e0ccb0] rounded w-3/4" />
-                      <div className="h-3 bg-[#e0ccb0] rounded w-1/2" />
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                    <div className="flex-1 space-y-1">
+                      <div className="h-3 bg-gray-100 rounded w-3/4" />
+                      <div className="h-2 bg-gray-100 rounded w-1/2" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : recentDeals.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {recentDeals.map((deal: any) => (
                   <Link
                     key={deal.id}
                     href={`/deals?id=${deal.id}`}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-[#faf5f0] transition-colors"
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#8B4513]/10 rounded-lg flex items-center justify-center">
-                        <Building2 size={16} className="text-[#8B4513]" />
+                    <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
+                      <div className="w-7 h-7 lg:w-8 lg:h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building2 size={14} className="text-gray-500" />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-black dark:text-white line-clamp-1">
+                      <div className="min-w-0">
+                        <p className="text-xs lg:text-sm font-medium text-gray-900 truncate">
                           {deal.title}
                         </p>
                         {deal.value && (
@@ -568,7 +554,7 @@ export default function DashboardPage() {
                           ? 'lost'
                           : 'active'
                       }
-                      className="text-xs"
+                      className="text-xs flex-shrink-0"
                     >
                       {deal.stage === 'won' ? 'Ganado' : deal.stage === 'lost' ? 'Perdido' : 'Activo'}
                     </Badge>
@@ -576,9 +562,9 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6">
-                <Kanban className="w-10 h-10 mx-auto text-[#cca87a] mb-2" />
-                <p className="text-gray-500 text-sm">No hay deals recientes</p>
+              <div className="text-center py-4">
+                <Kanban className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-gray-500 text-xs">No hay deals recientes</p>
               </div>
             )}
           </CardContent>

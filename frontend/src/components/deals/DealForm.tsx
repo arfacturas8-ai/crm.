@@ -164,7 +164,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
             title: data.title,
             stage: data.stage,
             value: data.value ? parseFloat(data.value) : undefined,
-            propertyId: selectedProperty ? parseInt(selectedProperty.databaseId, 10) : undefined,
+            propertyId: selectedProperty?.databaseId || undefined,
           },
         },
       });
@@ -176,7 +176,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
             leadId: data.leadId ? parseInt(data.leadId, 10) : undefined,
             stage: data.stage,
             value: data.value ? parseFloat(data.value) : undefined,
-            propertyId: selectedProperty ? parseInt(selectedProperty.databaseId, 10) : undefined,
+            propertyId: selectedProperty?.databaseId || undefined,
           },
         },
       });
