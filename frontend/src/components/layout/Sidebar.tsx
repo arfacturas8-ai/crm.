@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   CalendarCheck,
+  UserCog,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -26,10 +28,15 @@ const navigation = [
   { name: 'Busquedas', href: '/enquiries', icon: Search },
 ];
 
+const adminNavigation = [
+  { name: 'Agentes', href: '/agentes', icon: UserCog },
+  { name: 'Configuracion', href: '/settings', icon: Settings },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, sidebarCollapsed, setSidebarOpen, setSidebarCollapsed } = useUIStore();
-  const { user, logout } = useAuthStore();
+  const { user, logout, isAdmin } = useAuthStore();
 
   return (
     <>
@@ -100,6 +107,35 @@ export function Sidebar() {
             );
           })}
 
+          {/* Admin-only navigation */}
+          {isAdmin() && (
+            <>
+              {!sidebarCollapsed && (
+                <div className="pt-4 pb-2">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider px-3">
+                    Admin
+                  </p>
+                </div>
+              )}
+              {adminNavigation.map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      'sidebar-link',
+                      isActive && 'sidebar-link-active'
+                    )}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon size={20} />
+                    {!sidebarCollapsed && <span>{item.name}</span>}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* User section */}
