@@ -134,8 +134,8 @@ export default function AgentesPage() {
     },
   });
 
-  const agents: Agent[] = data?.houzezAgents?.nodes || [];
-  const totalCount = data?.houzezAgents?.totalCount || 0;
+  const agents: Agent[] = data?.agents?.nodes || [];
+  const totalCount = data?.agents?.totalCount || 0;
 
   // Apply client-side search filter
   const filteredAgents = agents.filter((agent) => {

@@ -1,9 +1,9 @@
 import { gql } from '@apollo/client';
 
-// Get all Houzez agents (custom post type)
+// Get all agents - try different field names based on WPGraphQL configuration
 export const GET_AGENTS = gql`
   query GetAgents($first: Int) {
-    houzezAgents(first: $first) {
+    agents(first: $first) {
       nodes {
         id
         databaseId
@@ -32,10 +32,10 @@ export const GET_AGENTS = gql`
   }
 `;
 
-// Alternative query if houzezAgents doesn't work - try agents
-export const GET_AGENTS_ALT = gql`
-  query GetAgentsAlt($first: Int) {
-    agents(first: $first) {
+// Alternative: Query using allAgent (WPGraphQL naming convention)
+export const GET_ALL_AGENTS = gql`
+  query GetAllAgents($first: Int) {
+    allAgent(first: $first) {
       nodes {
         id
         databaseId
@@ -56,7 +56,7 @@ export const GET_AGENTS_ALT = gql`
 // Get single agent by ID
 export const GET_AGENT = gql`
   query GetAgent($id: ID!) {
-    houzezAgent(id: $id) {
+    agent(id: $id) {
       id
       databaseId
       title
@@ -129,9 +129,9 @@ export const GET_AGENT_PROPERTIES = gql`
 
 // Create agent mutation
 export const CREATE_AGENT = gql`
-  mutation CreateAgent($input: CreateHouzezAgentInput!) {
-    createHouzezAgent(input: $input) {
-      houzezAgent {
+  mutation CreateAgent($input: CreateAgentInput!) {
+    createAgent(input: $input) {
+      agent {
         id
         databaseId
         title
@@ -142,9 +142,9 @@ export const CREATE_AGENT = gql`
 
 // Update agent mutation
 export const UPDATE_AGENT = gql`
-  mutation UpdateAgent($input: UpdateHouzezAgentInput!) {
-    updateHouzezAgent(input: $input) {
-      houzezAgent {
+  mutation UpdateAgent($input: UpdateAgentInput!) {
+    updateAgent(input: $input) {
+      agent {
         id
         databaseId
         title
@@ -161,10 +161,10 @@ export const UPDATE_AGENT = gql`
 
 // Delete agent mutation
 export const DELETE_AGENT = gql`
-  mutation DeleteAgent($input: DeleteHouzezAgentInput!) {
-    deleteHouzezAgent(input: $input) {
+  mutation DeleteAgent($input: DeleteAgentInput!) {
+    deleteAgent(input: $input) {
       deletedId
-      houzezAgent {
+      agent {
         id
         title
       }
