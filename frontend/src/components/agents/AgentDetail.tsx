@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Calendar,
   Building2,
   CheckCircle,
   XCircle,
@@ -14,22 +13,30 @@ import {
   Home,
   Clock,
   FileText,
+  Mail,
+  Phone,
+  Briefcase,
+  Award,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { cn, formatDate, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, getWhatsAppLink } from '@/lib/utils';
 
 interface Agent {
   id: string;
   databaseId: number;
   title: string;
-  slug: string;
-  date: string;
+  status: string;
   content?: string;
-  featuredImage?: {
-    node: {
-      sourceUrl: string;
-    };
+  profileImageUrl?: string;
+  agentMeta?: {
+    email?: string;
+    phone?: string;
+    officePhone?: string;
+    whatsapp?: string;
+    position?: string;
+    license?: string;
   };
 }
 
@@ -39,13 +46,14 @@ interface Property {
   title: string;
   status: string;
   date: string;
-  propertyStatus?: { nodes: { name: string }[] };
-  propertyType?: { nodes: { name: string }[] };
+  propertyStatus?: string;
+  propertyType?: string;
   propertyMeta?: {
     price?: number;
     bedrooms?: number;
     bathrooms?: number;
-    area?: number;
+    propertySize?: number;
+    address?: string;
   };
   featuredImage?: { node: { sourceUrl: string } };
 }
@@ -85,8 +93,8 @@ export function AgentDetail({
       {/* Agent Info Header */}
       <div className="flex items-start gap-4">
         <div className="w-16 h-16 lg:w-20 lg:h-20 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {agent.featuredImage?.node?.sourceUrl ? (
-            <img src={agent.featuredImage.node.sourceUrl} alt={agent.title} className="w-full h-full object-cover" />
+          {agent.profileImageUrl ? (
+            <img src={agent.profileImageUrl} alt={agent.title} className="w-full h-full object-cover" />
           ) : (
             <span className="text-[#8B4513] font-bold text-2xl lg:text-3xl">
               {agent.title?.charAt(0).toUpperCase()}
@@ -95,12 +103,44 @@ export function AgentDetail({
         </div>
         <div className="flex-1">
           <h2 className="text-lg lg:text-xl font-semibold text-gray-900">{agent.title}</h2>
-          <p className="text-sm text-gray-500 mt-1">ID: {agent.databaseId}</p>
+          {agent.agentMeta?.position && (
+            <p className="text-sm text-[#8B4513] font-medium flex items-center gap-1 mt-0.5">
+              <Briefcase size={14} />
+              {agent.agentMeta.position}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
+            {agent.agentMeta?.email && (
+              <a href={`mailto:${agent.agentMeta.email}`} className="flex items-center gap-1 hover:text-[#8B4513]">
+                <Mail size={14} />
+                {agent.agentMeta.email}
+              </a>
+            )}
+            {agent.agentMeta?.phone && (
+              <span className="flex items-center gap-1">
+                <Phone size={14} />
+                {agent.agentMeta.phone}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
-              <Calendar size={12} />
-              Registrado: {formatDate(agent.date)}
-            </span>
+            {agent.agentMeta?.whatsapp && (
+              <a
+                href={getWhatsAppLink(agent.agentMeta.whatsapp)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-xs flex items-center gap-1 hover:bg-[#128C7E]"
+              >
+                <MessageSquare size={12} />
+                WhatsApp
+              </a>
+            )}
+            {agent.agentMeta?.license && (
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <Award size={12} />
+                Licencia: {agent.agentMeta.license}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -155,8 +195,8 @@ export function AgentDetail({
             {properties.map((property) => {
               const status = property.status?.toLowerCase() || 'draft';
               const statusInfo = STATUS_LABELS[status] || STATUS_LABELS.draft;
-              const propertyType = property.propertyType?.nodes?.[0]?.name || 'Propiedad';
-              const propertyStatus = property.propertyStatus?.nodes?.[0]?.name || '';
+              const propertyType = property.propertyType || 'Propiedad';
+              const propertyStatus = property.propertyStatus || '';
 
               return (
                 <Card key={property.id} className="p-3 bg-white border-gray-200">
@@ -213,10 +253,10 @@ export function AgentDetail({
                             {property.propertyMeta.bathrooms}
                           </span>
                         )}
-                        {property.propertyMeta?.area && (
+                        {property.propertyMeta?.propertySize && (
                           <span className="flex items-center gap-1">
                             <Maximize size={12} />
-                            {property.propertyMeta.area} m²
+                            {property.propertyMeta.propertySize} m²
                           </span>
                         )}
                       </div>

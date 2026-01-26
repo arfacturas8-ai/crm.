@@ -12,9 +12,17 @@ interface Agent {
   id: string;
   databaseId: number;
   title: string;
-  slug: string;
-  date: string;
+  status: string;
   content?: string;
+  profileImageUrl?: string;
+  agentMeta?: {
+    email?: string;
+    phone?: string;
+    officePhone?: string;
+    whatsapp?: string;
+    position?: string;
+    license?: string;
+  };
 }
 
 interface AgentFormProps {
