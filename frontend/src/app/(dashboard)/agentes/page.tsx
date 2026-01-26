@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import {
   Users,
@@ -77,13 +77,17 @@ export default function AgentesPage() {
   });
 
   // Fetch agent properties when agent is selected
-  const { refetch: fetchProperties, loading: loadingProperties } = useQuery(GET_AGENT_PROPERTIES, {
+  const { data: propertiesData, refetch: fetchProperties, loading: loadingProperties } = useQuery(GET_AGENT_PROPERTIES, {
     variables: { agentId: selectedAgent?.databaseId || 0, first: 50 },
     skip: !selectedAgent,
-    onCompleted: (data) => {
-      setAgentProperties(data?.properties?.nodes || []);
-    },
   });
+
+  // Update properties when data changes
+  useEffect(() => {
+    if (propertiesData?.properties?.nodes) {
+      setAgentProperties(propertiesData.properties.nodes);
+    }
+  }, [propertiesData]);
 
   // Delete agent mutation
   const [deleteAgent, { loading: deletingAgent }] = useMutation(DELETE_AGENT, {
