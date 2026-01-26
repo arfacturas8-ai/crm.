@@ -30,7 +30,6 @@ const navigation = [
 
 const adminNavigation = [
   { name: 'Agentes', href: '/agentes', icon: UserCog },
-  { name: 'Configuracion', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {

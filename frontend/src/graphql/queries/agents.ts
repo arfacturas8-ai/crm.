@@ -2,8 +2,8 @@ import { gql } from '@apollo/client';
 
 // Get all users (agents, moderators, admins)
 export const GET_USERS = gql`
-  query GetUsers($first: Int, $after: String, $search: String) {
-    users(first: $first, after: $after, where: { search: $search }) {
+  query GetUsers($first: Int) {
+    users(first: $first) {
       nodes {
         id
         databaseId

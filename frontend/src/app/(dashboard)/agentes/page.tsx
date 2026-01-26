@@ -94,9 +94,10 @@ export default function AgentesPage() {
   const { openModal, closeModal, addNotification } = useUIStore();
   const { hasMinimumRole, isAdmin } = useAuthStore();
 
-  // Fetch users
+  // Fetch all users
   const { data, loading, refetch } = useQuery(GET_USERS, {
-    variables: { first: 50, search: search || undefined },
+    variables: { first: 100 },
+    fetchPolicy: 'cache-and-network',
   });
 
   // Fetch agent properties when agent is selected
@@ -145,11 +146,16 @@ export default function AgentesPage() {
 
   const agents: Agent[] = data?.users?.nodes || [];
 
-  // Filter to show only agents (not admins viewing other admins)
+  // Show all users, apply client-side search filter
   const filteredAgents = agents.filter((agent) => {
-    const roles = agent.roles?.nodes?.map((r) => r.name) || [];
-    // Show agents, authors, editors, agencies
-    return roles.some((r) => ['author', 'agent', 'agency', 'editor', 'contributor'].includes(r));
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const nameMatch = agent.name?.toLowerCase().includes(searchLower);
+      const emailMatch = agent.email?.toLowerCase().includes(searchLower);
+      if (!nameMatch && !emailMatch) return false;
+    }
+    return true;
   });
 
   const handleSearch = debounce((value: string) => {
