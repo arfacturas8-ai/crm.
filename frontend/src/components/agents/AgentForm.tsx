@@ -2,19 +2,29 @@
 
 import { useState } from 'react';
 import { useMutation } from '@apollo/client';
-import { User, Mail, Lock, Shield } from 'lucide-react';
-import { CREATE_USER, UPDATE_USER } from '@/graphql/queries/agents';
+import { User, Mail, Phone, Briefcase, MapPin, Award } from 'lucide-react';
+import { CREATE_AGENT, UPDATE_AGENT } from '@/graphql/queries/agents';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { useUIStore } from '@/store/ui-store';
 
 interface Agent {
   id: string;
   databaseId: number;
-  name: string;
-  email: string;
-  roles: { nodes: { name: string }[] };
+  title: string;
+  slug: string;
+  date: string;
+  agentMeta?: {
+    email?: string;
+    mobile?: string;
+    phone?: string;
+    whatsapp?: string;
+    position?: string;
+    licenseNumber?: string;
+    companyName?: string;
+    serviceAreas?: string;
+    specialties?: string;
+  };
 }
 
 interface AgentFormProps {
@@ -22,34 +32,31 @@ interface AgentFormProps {
   onSuccess: () => void;
 }
 
-const ROLE_OPTIONS = [
-  { value: 'agent', label: 'Agente' },
-  { value: 'author', label: 'Agente (Author)' },
-  { value: 'editor', label: 'Moderador' },
-  { value: 'contributor', label: 'Agente Jr' },
-];
-
 export function AgentForm({ agent, onSuccess }: AgentFormProps) {
   const isEditing = !!agent;
-  const currentRole = agent?.roles?.nodes?.[0]?.name || 'agent';
 
   const [formData, setFormData] = useState({
-    name: agent?.name || '',
-    email: agent?.email || '',
-    password: '',
-    confirmPassword: '',
-    role: currentRole,
+    title: agent?.title || '',
+    email: agent?.agentMeta?.email || '',
+    mobile: agent?.agentMeta?.mobile || '',
+    phone: agent?.agentMeta?.phone || '',
+    whatsapp: agent?.agentMeta?.whatsapp || '',
+    position: agent?.agentMeta?.position || '',
+    licenseNumber: agent?.agentMeta?.licenseNumber || '',
+    companyName: agent?.agentMeta?.companyName || '',
+    serviceAreas: agent?.agentMeta?.serviceAreas || '',
+    specialties: agent?.agentMeta?.specialties || '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { addNotification } = useUIStore();
 
-  const [createUser, { loading: creating }] = useMutation(CREATE_USER, {
+  const [createAgent, { loading: creating }] = useMutation(CREATE_AGENT, {
     onCompleted: () => {
       addNotification({
         type: 'success',
         title: 'Agente creado',
-        message: `El agente ${formData.name} ha sido creado exitosamente`,
+        message: `El agente ${formData.title} ha sido creado exitosamente`,
       });
       onSuccess();
     },
@@ -62,7 +69,7 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
     },
   });
 
-  const [updateUser, { loading: updating }] = useMutation(UPDATE_USER, {
+  const [updateAgent, { loading: updating }] = useMutation(UPDATE_AGENT, {
     onCompleted: () => {
       addNotification({
         type: 'success',
@@ -83,34 +90,12 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
+    if (!formData.title.trim()) {
+      newErrors.title = 'El nombre es requerido';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'El email es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email invalido';
-    }
-
-    if (!isEditing) {
-      if (!formData.password) {
-        newErrors.password = 'La contrasena es requerida';
-      } else if (formData.password.length < 8) {
-        newErrors.password = 'La contrasena debe tener al menos 8 caracteres';
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Las contrasenas no coinciden';
-      }
-    } else {
-      // When editing, password is optional but must match if provided
-      if (formData.password && formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Las contrasenas no coinciden';
-      }
-      if (formData.password && formData.password.length < 8) {
-        newErrors.password = 'La contrasena debe tener al menos 8 caracteres';
-      }
     }
 
     setErrors(newErrors);
@@ -122,31 +107,35 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
 
     if (!validate()) return;
 
+    const agentMeta = {
+      email: formData.email || undefined,
+      mobile: formData.mobile || undefined,
+      phone: formData.phone || undefined,
+      whatsapp: formData.whatsapp || formData.mobile || undefined,
+      position: formData.position || undefined,
+      licenseNumber: formData.licenseNumber || undefined,
+      companyName: formData.companyName || undefined,
+      serviceAreas: formData.serviceAreas || undefined,
+      specialties: formData.specialties || undefined,
+    };
+
     if (isEditing) {
-      const input: any = {
-        id: agent.id,
-        displayName: formData.name,
-        email: formData.email,
-        roles: [formData.role],
-      };
-
-      if (formData.password) {
-        input.password = formData.password;
-      }
-
-      updateUser({ variables: { input } });
-    } else {
-      // Generate username from email
-      const username = formData.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-
-      createUser({
+      updateAgent({
         variables: {
           input: {
-            username,
-            email: formData.email,
-            displayName: formData.name,
-            password: formData.password,
-            roles: [formData.role],
+            id: agent.id,
+            title: formData.title,
+            agentMeta,
+          },
+        },
+      });
+    } else {
+      createAgent({
+        variables: {
+          input: {
+            title: formData.title,
+            status: 'PUBLISH',
+            agentMeta,
           },
         },
       });
@@ -169,83 +158,147 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
         </label>
         <Input
           placeholder="Nombre del agente"
-          value={formData.name}
-          onChange={(e) => handleChange('name', e.target.value)}
+          value={formData.title}
+          onChange={(e) => handleChange('title', e.target.value)}
           leftIcon={<User size={16} />}
-          error={errors.name}
+          error={errors.title}
           className="bg-white border-gray-200"
         />
       </div>
 
-      {/* Email */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email *
-        </label>
-        <Input
-          type="email"
-          placeholder="email@ejemplo.com"
-          value={formData.email}
-          onChange={(e) => handleChange('email', e.target.value)}
-          leftIcon={<Mail size={16} />}
-          error={errors.email}
-          className="bg-white border-gray-200"
-        />
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Email */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <Input
+            type="email"
+            placeholder="email@ejemplo.com"
+            value={formData.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            leftIcon={<Mail size={16} />}
+            error={errors.email}
+            className="bg-white border-gray-200"
+          />
+        </div>
 
-      {/* Role */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Rol *
-        </label>
-        <div className="relative">
-          <Shield size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-          <Select
-            options={ROLE_OPTIONS}
-            value={formData.role}
-            onChange={(e) => handleChange('role', e.target.value)}
-            className="pl-10 bg-white border-gray-200"
+        {/* Mobile */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Celular
+          </label>
+          <Input
+            type="tel"
+            placeholder="+506 8888-8888"
+            value={formData.mobile}
+            onChange={(e) => handleChange('mobile', e.target.value)}
+            leftIcon={<Phone size={16} />}
+            className="bg-white border-gray-200"
           />
         </div>
       </div>
 
-      {/* Password */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Phone */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Telefono oficina
+          </label>
+          <Input
+            type="tel"
+            placeholder="+506 2222-2222"
+            value={formData.phone}
+            onChange={(e) => handleChange('phone', e.target.value)}
+            leftIcon={<Phone size={16} />}
+            className="bg-white border-gray-200"
+          />
+        </div>
+
+        {/* WhatsApp */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            WhatsApp
+          </label>
+          <Input
+            type="tel"
+            placeholder="+506 8888-8888"
+            value={formData.whatsapp}
+            onChange={(e) => handleChange('whatsapp', e.target.value)}
+            leftIcon={<Phone size={16} />}
+            className="bg-white border-gray-200"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Position */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Posicion / Cargo
+          </label>
+          <Input
+            placeholder="Agente Inmobiliario"
+            value={formData.position}
+            onChange={(e) => handleChange('position', e.target.value)}
+            leftIcon={<Briefcase size={16} />}
+            className="bg-white border-gray-200"
+          />
+        </div>
+
+        {/* License */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Numero de Licencia
+          </label>
+          <Input
+            placeholder="LIC-12345"
+            value={formData.licenseNumber}
+            onChange={(e) => handleChange('licenseNumber', e.target.value)}
+            leftIcon={<Award size={16} />}
+            className="bg-white border-gray-200"
+          />
+        </div>
+      </div>
+
+      {/* Company */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          {isEditing ? 'Nueva contrasena (dejar vacio para mantener)' : 'Contrasena *'}
+          Empresa / Agencia
         </label>
         <Input
-          type="password"
-          placeholder={isEditing ? 'Nueva contrasena (opcional)' : 'Minimo 8 caracteres'}
-          value={formData.password}
-          onChange={(e) => handleChange('password', e.target.value)}
-          leftIcon={<Lock size={16} />}
-          error={errors.password}
+          placeholder="Nombre de la empresa"
+          value={formData.companyName}
+          onChange={(e) => handleChange('companyName', e.target.value)}
           className="bg-white border-gray-200"
         />
       </div>
 
-      {/* Confirm Password */}
+      {/* Service Areas */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Confirmar contrasena {!isEditing && '*'}
+          Areas de servicio
         </label>
         <Input
-          type="password"
-          placeholder="Repetir contrasena"
-          value={formData.confirmPassword}
-          onChange={(e) => handleChange('confirmPassword', e.target.value)}
-          leftIcon={<Lock size={16} />}
-          error={errors.confirmPassword}
+          placeholder="San Jose, Escazu, Santa Ana..."
+          value={formData.serviceAreas}
+          onChange={(e) => handleChange('serviceAreas', e.target.value)}
+          leftIcon={<MapPin size={16} />}
           className="bg-white border-gray-200"
         />
       </div>
 
-      {/* Role descriptions */}
-      <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-600 space-y-1">
-        <p><strong>Agente:</strong> Puede gestionar sus propias propiedades y leads asignados</p>
-        <p><strong>Moderador:</strong> Puede gestionar leads, deals y propiedades de todos</p>
-        <p><strong>Agente Jr:</strong> Acceso limitado, solo visualizacion</p>
+      {/* Specialties */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Especialidades
+        </label>
+        <Input
+          placeholder="Residencial, Comercial, Lujo..."
+          value={formData.specialties}
+          onChange={(e) => handleChange('specialties', e.target.value)}
+          className="bg-white border-gray-200"
+        />
       </div>
 
       {/* Actions */}

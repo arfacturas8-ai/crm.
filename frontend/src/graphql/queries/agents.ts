@@ -1,60 +1,96 @@
 import { gql } from '@apollo/client';
 
-// Get all users (agents, moderators, admins)
-export const GET_USERS = gql`
-  query GetUsers($first: Int) {
-    users(first: $first) {
+// Get all Houzez agents (custom post type)
+export const GET_AGENTS = gql`
+  query GetAgents($first: Int) {
+    houzezAgents(first: $first) {
       nodes {
         id
         databaseId
-        name
-        email
-        roles {
-          nodes {
-            name
+        title
+        slug
+        date
+        agentMeta {
+          email
+          mobile
+          phone
+          whatsapp
+          position
+          licenseNumber
+          companyName
+          serviceAreas
+          specialties
+        }
+        featuredImage {
+          node {
+            sourceUrl(size: THUMBNAIL)
           }
         }
-        avatar {
-          url
-        }
-        registeredDate
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      totalCount
     }
   }
 `;
 
-// Get single user by ID
-export const GET_USER = gql`
-  query GetUser($id: ID!) {
-    user(id: $id) {
-      id
-      databaseId
-      name
-      email
-      firstName
-      lastName
-      roles {
-        nodes {
-          name
+// Alternative query if houzezAgents doesn't work - try agents
+export const GET_AGENTS_ALT = gql`
+  query GetAgentsAlt($first: Int) {
+    agents(first: $first) {
+      nodes {
+        id
+        databaseId
+        title
+        slug
+        date
+        featuredImage {
+          node {
+            sourceUrl(size: THUMBNAIL)
+          }
         }
       }
-      avatar {
-        url
+      totalCount
+    }
+  }
+`;
+
+// Get single agent by ID
+export const GET_AGENT = gql`
+  query GetAgent($id: ID!) {
+    houzezAgent(id: $id) {
+      id
+      databaseId
+      title
+      slug
+      content
+      date
+      agentMeta {
+        email
+        mobile
+        phone
+        whatsapp
+        position
+        licenseNumber
+        companyName
+        serviceAreas
+        specialties
+        facebook
+        twitter
+        linkedin
+        instagram
       }
-      registeredDate
-      description
+      featuredImage {
+        node {
+          sourceUrl(size: MEDIUM)
+        }
+      }
     }
   }
 `;
 
 // Get agent's properties (listings) from Houzez
 export const GET_AGENT_PROPERTIES = gql`
-  query GetAgentProperties($authorId: Int!, $first: Int) {
-    properties(first: $first, where: { author: $authorId }) {
+  query GetAgentProperties($agentId: Int!, $first: Int) {
+    properties(first: $first, where: { author: $agentId }) {
       nodes {
         id
         databaseId
@@ -91,55 +127,46 @@ export const GET_AGENT_PROPERTIES = gql`
   }
 `;
 
-// Create user mutation (WordPress GraphQL mutation)
-export const CREATE_USER = gql`
-  mutation CreateUser($input: CreateUserInput!) {
-    createUser(input: $input) {
-      user {
+// Create agent mutation
+export const CREATE_AGENT = gql`
+  mutation CreateAgent($input: CreateHouzezAgentInput!) {
+    createHouzezAgent(input: $input) {
+      houzezAgent {
         id
         databaseId
-        name
-        email
-        roles {
-          nodes {
-            name
-          }
+        title
+      }
+    }
+  }
+`;
+
+// Update agent mutation
+export const UPDATE_AGENT = gql`
+  mutation UpdateAgent($input: UpdateHouzezAgentInput!) {
+    updateHouzezAgent(input: $input) {
+      houzezAgent {
+        id
+        databaseId
+        title
+        agentMeta {
+          email
+          mobile
+          phone
+          position
         }
       }
     }
   }
 `;
 
-// Update user mutation
-export const UPDATE_USER = gql`
-  mutation UpdateUser($input: UpdateUserInput!) {
-    updateUser(input: $input) {
-      user {
-        id
-        databaseId
-        name
-        email
-        firstName
-        lastName
-        roles {
-          nodes {
-            name
-          }
-        }
-        description
-      }
-    }
-  }
-`;
-
-// Delete user mutation
-export const DELETE_USER = gql`
-  mutation DeleteUser($input: DeleteUserInput!) {
-    deleteUser(input: $input) {
+// Delete agent mutation
+export const DELETE_AGENT = gql`
+  mutation DeleteAgent($input: DeleteHouzezAgentInput!) {
+    deleteHouzezAgent(input: $input) {
       deletedId
-      user {
+      houzezAgent {
         id
-        name
+        title
       }
     }
   }
@@ -168,18 +195,6 @@ export const DELETE_PROPERTY = gql`
         id
         title
       }
-    }
-  }
-`;
-
-// Get agent stats (leads and deals assigned)
-export const GET_AGENT_STATS = gql`
-  query GetAgentStats($agentId: String!) {
-    leads(where: { agentId: $agentId }) {
-      totalCount
-    }
-    deals(where: { agentId: $agentId }) {
-      totalCount
     }
   }
 `;

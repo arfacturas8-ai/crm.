@@ -10,42 +10,52 @@ import {
   Edit,
   Trash2,
   Shield,
-  Building2,
-  CheckCircle,
-  XCircle,
-  MoreVertical,
   Mail,
+  Phone,
   Calendar,
-  Home,
-  User,
   AlertTriangle,
+  MessageSquare,
+  Briefcase,
 } from 'lucide-react';
 import {
-  GET_USERS,
+  GET_AGENTS,
   GET_AGENT_PROPERTIES,
-  DELETE_USER,
+  DELETE_AGENT,
   UPDATE_PROPERTY_STATUS,
   DELETE_PROPERTY,
 } from '@/graphql/queries/agents';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
 import { useAuthStore } from '@/store/auth-store';
-import { cn, formatDate, formatCurrency, debounce } from '@/lib/utils';
+import { formatDate, debounce, getWhatsAppLink } from '@/lib/utils';
 import { AgentForm } from '@/components/agents/AgentForm';
 import { AgentDetail } from '@/components/agents/AgentDetail';
 
 interface Agent {
   id: string;
   databaseId: number;
-  name: string;
-  email: string;
-  roles: { nodes: { name: string }[] };
-  avatar?: { url: string };
-  registeredDate: string;
+  title: string;
+  slug: string;
+  date: string;
+  agentMeta?: {
+    email?: string;
+    mobile?: string;
+    phone?: string;
+    whatsapp?: string;
+    position?: string;
+    licenseNumber?: string;
+    companyName?: string;
+    serviceAreas?: string;
+    specialties?: string;
+  };
+  featuredImage?: {
+    node: {
+      sourceUrl: string;
+    };
+  };
 }
 
 interface Property {
@@ -65,26 +75,6 @@ interface Property {
   featuredImage?: { node: { sourceUrl: string } };
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  administrator: 'Admin',
-  editor: 'Moderador',
-  author: 'Agente',
-  contributor: 'Agente Jr',
-  subscriber: 'Suscriptor',
-  agent: 'Agente',
-  agency: 'Agencia',
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  administrator: 'bg-purple-100 text-purple-700',
-  editor: 'bg-blue-100 text-blue-700',
-  author: 'bg-green-100 text-green-700',
-  agent: 'bg-green-100 text-green-700',
-  agency: 'bg-amber-100 text-amber-700',
-  contributor: 'bg-gray-100 text-gray-700',
-  subscriber: 'bg-gray-100 text-gray-500',
-};
-
 export default function AgentesPage() {
   const [search, setSearch] = useState('');
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -92,25 +82,25 @@ export default function AgentesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'agent' | 'property'; item: any } | null>(null);
 
   const { openModal, closeModal, addNotification } = useUIStore();
-  const { hasMinimumRole, isAdmin } = useAuthStore();
+  const { hasMinimumRole } = useAuthStore();
 
-  // Fetch all users
-  const { data, loading, refetch } = useQuery(GET_USERS, {
+  // Fetch all Houzez agents
+  const { data, loading, error, refetch } = useQuery(GET_AGENTS, {
     variables: { first: 100 },
     fetchPolicy: 'cache-and-network',
   });
 
   // Fetch agent properties when agent is selected
   const { refetch: fetchProperties, loading: loadingProperties } = useQuery(GET_AGENT_PROPERTIES, {
-    variables: { authorId: selectedAgent?.databaseId || 0, first: 50 },
+    variables: { agentId: selectedAgent?.databaseId || 0, first: 50 },
     skip: !selectedAgent,
     onCompleted: (data) => {
       setAgentProperties(data?.properties?.nodes || []);
     },
   });
 
-  // Delete user mutation
-  const [deleteUser, { loading: deletingUser }] = useMutation(DELETE_USER, {
+  // Delete agent mutation
+  const [deleteAgent, { loading: deletingAgent }] = useMutation(DELETE_AGENT, {
     onCompleted: () => {
       addNotification({ type: 'success', title: 'Agente eliminado', message: 'El agente ha sido eliminado correctamente' });
       setDeleteConfirm(null);
@@ -144,18 +134,17 @@ export default function AgentesPage() {
     },
   });
 
-  const agents: Agent[] = data?.users?.nodes || [];
+  const agents: Agent[] = data?.houzezAgents?.nodes || [];
+  const totalCount = data?.houzezAgents?.totalCount || 0;
 
-  // Show all users, apply client-side search filter
+  // Apply client-side search filter
   const filteredAgents = agents.filter((agent) => {
-    // Apply search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
-      const nameMatch = agent.name?.toLowerCase().includes(searchLower);
-      const emailMatch = agent.email?.toLowerCase().includes(searchLower);
-      if (!nameMatch && !emailMatch) return false;
-    }
-    return true;
+    if (!search) return true;
+    const searchLower = search.toLowerCase();
+    const nameMatch = agent.title?.toLowerCase().includes(searchLower);
+    const emailMatch = agent.agentMeta?.email?.toLowerCase().includes(searchLower);
+    const phoneMatch = agent.agentMeta?.mobile?.includes(search) || agent.agentMeta?.phone?.includes(search);
+    return nameMatch || emailMatch || phoneMatch;
   });
 
   const handleSearch = debounce((value: string) => {
@@ -194,16 +183,6 @@ export default function AgentesPage() {
     });
   };
 
-  const getRoleBadge = (roles: { nodes: { name: string }[] }) => {
-    const roleNames = roles?.nodes?.map((r) => r.name) || [];
-    const primaryRole = roleNames[0] || 'subscriber';
-    return (
-      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', ROLE_COLORS[primaryRole] || ROLE_COLORS.subscriber)}>
-        {ROLE_LABELS[primaryRole] || primaryRole}
-      </span>
-    );
-  };
-
   // Admin-only access check
   if (!hasMinimumRole('admin')) {
     return (
@@ -226,7 +205,7 @@ export default function AgentesPage() {
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Agentes</h1>
           <p className="text-sm text-gray-500">
-            {filteredAgents.length} agentes registrados
+            {totalCount} agentes registrados
           </p>
         </div>
         <Button leftIcon={<Plus size={14} />} onClick={() => openModal('create-agent')} className="text-xs lg:text-sm">
@@ -237,12 +216,25 @@ export default function AgentesPage() {
       {/* Search */}
       <Card className="p-3 lg:p-4 bg-white border-gray-200">
         <Input
-          placeholder="Buscar por nombre o email..."
+          placeholder="Buscar por nombre, email o telefono..."
           leftIcon={<Search size={16} />}
           onChange={(e) => handleSearch(e.target.value)}
           className="bg-white border-gray-200 text-sm max-w-md"
         />
       </Card>
+
+      {/* Error State */}
+      {error && (
+        <Card className="p-4 bg-red-50 border-red-200">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-red-500" size={20} />
+            <div>
+              <p className="font-medium text-red-700">Error al cargar agentes</p>
+              <p className="text-sm text-red-600">{error.message}</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Mobile Card View */}
       <div className="lg:hidden space-y-3">
@@ -250,7 +242,7 @@ export default function AgentesPage() {
           [...Array(5)].map((_, i) => (
             <Card key={i} className="p-4 bg-white border-gray-200">
               <div className="animate-pulse flex items-center gap-3">
-                <div className="w-12 h-12 bg-gray-100 rounded-full" />
+                <div className="w-14 h-14 bg-gray-100 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <div className="h-4 bg-gray-100 rounded w-3/4" />
                   <div className="h-3 bg-gray-100 rounded w-1/2" />
@@ -262,24 +254,37 @@ export default function AgentesPage() {
           filteredAgents.map((agent) => (
             <Card key={agent.id} className="p-4 bg-white border-gray-200">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  {agent.avatar?.url ? (
-                    <img src={agent.avatar.url} alt={agent.name} className="w-12 h-12 rounded-full object-cover" />
+                <div className="w-14 h-14 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {agent.featuredImage?.node?.sourceUrl ? (
+                    <img src={agent.featuredImage.node.sourceUrl} alt={agent.title} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[#8B4513] font-semibold text-lg">
-                      {agent.name?.charAt(0).toUpperCase()}
+                    <span className="text-[#8B4513] font-semibold text-xl">
+                      {agent.title?.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{agent.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{agent.email}</p>
-                    </div>
-                    {getRoleBadge(agent.roles)}
-                  </div>
+                  <p className="font-medium text-gray-900">{agent.title}</p>
+                  {agent.agentMeta?.position && (
+                    <p className="text-xs text-[#8B4513] font-medium">{agent.agentMeta.position}</p>
+                  )}
+                  {agent.agentMeta?.email && (
+                    <p className="text-xs text-gray-500 truncate mt-1">{agent.agentMeta.email}</p>
+                  )}
+                  {agent.agentMeta?.mobile && (
+                    <p className="text-xs text-gray-500">{agent.agentMeta.mobile}</p>
+                  )}
                   <div className="flex items-center gap-2 mt-3">
+                    {agent.agentMeta?.whatsapp && (
+                      <a
+                        href={getWhatsAppLink(agent.agentMeta.whatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-[#25D366] text-white rounded-lg"
+                      >
+                        <MessageSquare size={14} />
+                      </a>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => handleViewAgent(agent)} className="h-8 w-8">
                       <Eye size={14} />
                     </Button>
@@ -314,8 +319,8 @@ export default function AgentesPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Agente</th>
-                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Rol</th>
+                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Contacto</th>
+                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Posicion</th>
                 <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Registro</th>
                 <th className="text-right p-4 text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
@@ -325,7 +330,7 @@ export default function AgentesPage() {
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-50">
                     <td className="p-4" colSpan={5}>
-                      <div className="animate-pulse h-12 bg-gray-100 rounded" />
+                      <div className="animate-pulse h-14 bg-gray-100 rounded" />
                     </td>
                   </tr>
                 ))
@@ -334,36 +339,65 @@ export default function AgentesPage() {
                   <tr key={agent.id} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                          {agent.avatar?.url ? (
-                            <img src={agent.avatar.url} alt={agent.name} className="w-10 h-10 rounded-full object-cover" />
+                        <div className="w-12 h-12 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {agent.featuredImage?.node?.sourceUrl ? (
+                            <img src={agent.featuredImage.node.sourceUrl} alt={agent.title} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-[#8B4513] font-medium">
-                              {agent.name?.charAt(0).toUpperCase()}
+                            <span className="text-[#8B4513] font-semibold text-lg">
+                              {agent.title?.charAt(0).toUpperCase()}
                             </span>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate text-sm">{agent.name}</p>
+                          <p className="font-medium text-gray-900">{agent.title}</p>
                           <p className="text-xs text-gray-500">ID: {agent.databaseId}</p>
                         </div>
                       </div>
                     </td>
                     <td className="p-4">
-                      <a href={`mailto:${agent.email}`} className="text-sm text-gray-600 hover:text-[#8B4513] flex items-center gap-1">
-                        <Mail size={12} />
-                        {agent.email}
-                      </a>
+                      <div className="space-y-1">
+                        {agent.agentMeta?.email && (
+                          <a href={`mailto:${agent.agentMeta.email}`} className="text-sm text-gray-600 hover:text-[#8B4513] flex items-center gap-1">
+                            <Mail size={12} />
+                            {agent.agentMeta.email}
+                          </a>
+                        )}
+                        {agent.agentMeta?.mobile && (
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <Phone size={12} />
+                            {agent.agentMeta.mobile}
+                          </p>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-4">{getRoleBadge(agent.roles)}</td>
+                    <td className="p-4">
+                      {agent.agentMeta?.position ? (
+                        <span className="text-sm text-[#8B4513] font-medium flex items-center gap-1">
+                          <Briefcase size={12} />
+                          {agent.agentMeta.position}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="p-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <Calendar size={12} />
-                        {formatDate(agent.registeredDate)}
+                        {formatDate(agent.date)}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {agent.agentMeta?.whatsapp && (
+                          <a
+                            href={getWhatsAppLink(agent.agentMeta.whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors"
+                          >
+                            <MessageSquare size={14} />
+                          </a>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => handleViewAgent(agent)} title="Ver detalles" className="h-8 w-8">
                           <Eye size={14} />
                         </Button>
@@ -451,7 +485,7 @@ export default function AgentesPage() {
             </div>
             <p className="text-gray-600 mb-6">
               {deleteConfirm.type === 'agent' ? (
-                <>Estas seguro de eliminar al agente <strong>{deleteConfirm.item.name}</strong>? Se eliminaran todos sus datos asociados.</>
+                <>Estas seguro de eliminar al agente <strong>{deleteConfirm.item.title}</strong>?</>
               ) : (
                 <>Estas seguro de eliminar la propiedad <strong>{deleteConfirm.item.title}</strong>?</>
               )}
@@ -462,10 +496,10 @@ export default function AgentesPage() {
               </Button>
               <Button
                 variant="destructive"
-                isLoading={deletingUser || deletingProperty}
+                isLoading={deletingAgent || deletingProperty}
                 onClick={() => {
                   if (deleteConfirm.type === 'agent') {
-                    deleteUser({ variables: { input: { id: deleteConfirm.item.id } } });
+                    deleteAgent({ variables: { input: { id: deleteConfirm.item.id } } });
                   } else {
                     deleteProperty({ variables: { input: { id: deleteConfirm.item.id } } });
                   }
