@@ -1,6 +1,6 @@
 import { gql } from '@apollo/client';
 
-// Get all agents - try different field names based on WPGraphQL configuration
+// Get all agents - basic fields available in WPGraphQL
 export const GET_AGENTS = gql`
   query GetAgents($first: Int) {
     agents(first: $first) {
@@ -10,24 +10,17 @@ export const GET_AGENTS = gql`
         title
         slug
         date
-        agentMeta {
-          email
-          mobile
-          phone
-          whatsapp
-          position
-          licenseNumber
-          companyName
-          serviceAreas
-          specialties
-        }
+        content
         featuredImage {
           node {
             sourceUrl(size: THUMBNAIL)
           }
         }
       }
-      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
     }
   }
 `;
@@ -63,21 +56,6 @@ export const GET_AGENT = gql`
       slug
       content
       date
-      agentMeta {
-        email
-        mobile
-        phone
-        whatsapp
-        position
-        licenseNumber
-        companyName
-        serviceAreas
-        specialties
-        facebook
-        twitter
-        linkedin
-        instagram
-      }
       featuredImage {
         node {
           sourceUrl(size: MEDIUM)
@@ -148,12 +126,6 @@ export const UPDATE_AGENT = gql`
         id
         databaseId
         title
-        agentMeta {
-          email
-          mobile
-          phone
-          position
-        }
       }
     }
   }

@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Mail,
   Calendar,
   Building2,
   CheckCircle,
@@ -15,15 +14,10 @@ import {
   Home,
   Clock,
   FileText,
-  Phone,
-  Briefcase,
-  MapPin,
-  Award,
-  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { cn, formatDate, formatCurrency, getWhatsAppLink } from '@/lib/utils';
+import { cn, formatDate, formatCurrency } from '@/lib/utils';
 
 interface Agent {
   id: string;
@@ -31,17 +25,7 @@ interface Agent {
   title: string;
   slug: string;
   date: string;
-  agentMeta?: {
-    email?: string;
-    mobile?: string;
-    phone?: string;
-    whatsapp?: string;
-    position?: string;
-    licenseNumber?: string;
-    companyName?: string;
-    serviceAreas?: string;
-    specialties?: string;
-  };
+  content?: string;
   featuredImage?: {
     node: {
       sourceUrl: string;
@@ -111,38 +95,8 @@ export function AgentDetail({
         </div>
         <div className="flex-1">
           <h2 className="text-lg lg:text-xl font-semibold text-gray-900">{agent.title}</h2>
-          {agent.agentMeta?.position && (
-            <p className="text-sm text-[#8B4513] font-medium flex items-center gap-1 mt-0.5">
-              <Briefcase size={14} />
-              {agent.agentMeta.position}
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
-            {agent.agentMeta?.email && (
-              <a href={`mailto:${agent.agentMeta.email}`} className="flex items-center gap-1 hover:text-[#8B4513]">
-                <Mail size={14} />
-                {agent.agentMeta.email}
-              </a>
-            )}
-            {agent.agentMeta?.mobile && (
-              <span className="flex items-center gap-1">
-                <Phone size={14} />
-                {agent.agentMeta.mobile}
-              </span>
-            )}
-          </div>
+          <p className="text-sm text-gray-500 mt-1">ID: {agent.databaseId}</p>
           <div className="flex items-center gap-2 mt-2">
-            {agent.agentMeta?.whatsapp && (
-              <a
-                href={getWhatsAppLink(agent.agentMeta.whatsapp)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-xs flex items-center gap-1 hover:bg-[#128C7E]"
-              >
-                <MessageSquare size={12} />
-                WhatsApp
-              </a>
-            )}
             <span className="text-xs text-gray-400 flex items-center gap-1">
               <Calendar size={12} />
               Registrado: {formatDate(agent.date)}
@@ -151,41 +105,10 @@ export function AgentDetail({
         </div>
       </div>
 
-      {/* Agent Details */}
-      {(agent.agentMeta?.companyName || agent.agentMeta?.licenseNumber || agent.agentMeta?.serviceAreas || agent.agentMeta?.specialties) && (
+      {/* Agent Description */}
+      {agent.content && (
         <Card className="p-4 bg-gray-50 border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            {agent.agentMeta?.companyName && (
-              <div>
-                <span className="text-gray-500 text-xs">Empresa:</span>
-                <p className="font-medium text-gray-900">{agent.agentMeta.companyName}</p>
-              </div>
-            )}
-            {agent.agentMeta?.licenseNumber && (
-              <div>
-                <span className="text-gray-500 text-xs flex items-center gap-1">
-                  <Award size={10} />
-                  Licencia:
-                </span>
-                <p className="font-medium text-gray-900">{agent.agentMeta.licenseNumber}</p>
-              </div>
-            )}
-            {agent.agentMeta?.serviceAreas && (
-              <div>
-                <span className="text-gray-500 text-xs flex items-center gap-1">
-                  <MapPin size={10} />
-                  Areas:
-                </span>
-                <p className="font-medium text-gray-900">{agent.agentMeta.serviceAreas}</p>
-              </div>
-            )}
-            {agent.agentMeta?.specialties && (
-              <div>
-                <span className="text-gray-500 text-xs">Especialidades:</span>
-                <p className="font-medium text-gray-900">{agent.agentMeta.specialties}</p>
-              </div>
-            )}
-          </div>
+          <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: agent.content }} />
         </Card>
       )}
 

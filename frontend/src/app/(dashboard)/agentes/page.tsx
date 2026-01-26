@@ -10,12 +10,8 @@ import {
   Edit,
   Trash2,
   Shield,
-  Mail,
-  Phone,
   Calendar,
   AlertTriangle,
-  MessageSquare,
-  Briefcase,
 } from 'lucide-react';
 import {
   GET_AGENTS,
@@ -30,7 +26,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
 import { useAuthStore } from '@/store/auth-store';
-import { formatDate, debounce, getWhatsAppLink } from '@/lib/utils';
+import { formatDate, debounce } from '@/lib/utils';
 import { AgentForm } from '@/components/agents/AgentForm';
 import { AgentDetail } from '@/components/agents/AgentDetail';
 
@@ -40,17 +36,7 @@ interface Agent {
   title: string;
   slug: string;
   date: string;
-  agentMeta?: {
-    email?: string;
-    mobile?: string;
-    phone?: string;
-    whatsapp?: string;
-    position?: string;
-    licenseNumber?: string;
-    companyName?: string;
-    serviceAreas?: string;
-    specialties?: string;
-  };
+  content?: string;
   featuredImage?: {
     node: {
       sourceUrl: string;
@@ -84,7 +70,7 @@ export default function AgentesPage() {
   const { openModal, closeModal, addNotification } = useUIStore();
   const { hasMinimumRole } = useAuthStore();
 
-  // Fetch all Houzez agents
+  // Fetch all agents
   const { data, loading, error, refetch } = useQuery(GET_AGENTS, {
     variables: { first: 100 },
     fetchPolicy: 'cache-and-network',
@@ -135,16 +121,13 @@ export default function AgentesPage() {
   });
 
   const agents: Agent[] = data?.agents?.nodes || [];
-  const totalCount = data?.agents?.totalCount || 0;
 
   // Apply client-side search filter
   const filteredAgents = agents.filter((agent) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
     const nameMatch = agent.title?.toLowerCase().includes(searchLower);
-    const emailMatch = agent.agentMeta?.email?.toLowerCase().includes(searchLower);
-    const phoneMatch = agent.agentMeta?.mobile?.includes(search) || agent.agentMeta?.phone?.includes(search);
-    return nameMatch || emailMatch || phoneMatch;
+    return nameMatch;
   });
 
   const handleSearch = debounce((value: string) => {
@@ -205,7 +188,7 @@ export default function AgentesPage() {
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Agentes</h1>
           <p className="text-sm text-gray-500">
-            {totalCount} agentes registrados
+            {agents.length} agentes registrados
           </p>
         </div>
         <Button leftIcon={<Plus size={14} />} onClick={() => openModal('create-agent')} className="text-xs lg:text-sm">
@@ -216,7 +199,7 @@ export default function AgentesPage() {
       {/* Search */}
       <Card className="p-3 lg:p-4 bg-white border-gray-200">
         <Input
-          placeholder="Buscar por nombre, email o telefono..."
+          placeholder="Buscar por nombre..."
           leftIcon={<Search size={16} />}
           onChange={(e) => handleSearch(e.target.value)}
           className="bg-white border-gray-200 text-sm max-w-md"
@@ -265,26 +248,9 @@ export default function AgentesPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900">{agent.title}</p>
-                  {agent.agentMeta?.position && (
-                    <p className="text-xs text-[#8B4513] font-medium">{agent.agentMeta.position}</p>
-                  )}
-                  {agent.agentMeta?.email && (
-                    <p className="text-xs text-gray-500 truncate mt-1">{agent.agentMeta.email}</p>
-                  )}
-                  {agent.agentMeta?.mobile && (
-                    <p className="text-xs text-gray-500">{agent.agentMeta.mobile}</p>
-                  )}
+                  <p className="text-xs text-gray-500">ID: {agent.databaseId}</p>
+                  <p className="text-xs text-gray-400 mt-1">{formatDate(agent.date)}</p>
                   <div className="flex items-center gap-2 mt-3">
-                    {agent.agentMeta?.whatsapp && (
-                      <a
-                        href={getWhatsAppLink(agent.agentMeta.whatsapp)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-[#25D366] text-white rounded-lg"
-                      >
-                        <MessageSquare size={14} />
-                      </a>
-                    )}
                     <Button variant="ghost" size="icon" onClick={() => handleViewAgent(agent)} className="h-8 w-8">
                       <Eye size={14} />
                     </Button>
@@ -319,8 +285,7 @@ export default function AgentesPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Agente</th>
-                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Contacto</th>
-                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Posicion</th>
+                <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">ID</th>
                 <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Registro</th>
                 <th className="text-right p-4 text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
@@ -329,7 +294,7 @@ export default function AgentesPage() {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-50">
-                    <td className="p-4" colSpan={5}>
+                    <td className="p-4" colSpan={4}>
                       <div className="animate-pulse h-14 bg-gray-100 rounded" />
                     </td>
                   </tr>
@@ -350,35 +315,12 @@ export default function AgentesPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-gray-900">{agent.title}</p>
-                          <p className="text-xs text-gray-500">ID: {agent.databaseId}</p>
+                          <p className="text-xs text-gray-500 truncate max-w-xs">{agent.slug}</p>
                         </div>
                       </div>
                     </td>
                     <td className="p-4">
-                      <div className="space-y-1">
-                        {agent.agentMeta?.email && (
-                          <a href={`mailto:${agent.agentMeta.email}`} className="text-sm text-gray-600 hover:text-[#8B4513] flex items-center gap-1">
-                            <Mail size={12} />
-                            {agent.agentMeta.email}
-                          </a>
-                        )}
-                        {agent.agentMeta?.mobile && (
-                          <p className="text-sm text-gray-500 flex items-center gap-1">
-                            <Phone size={12} />
-                            {agent.agentMeta.mobile}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      {agent.agentMeta?.position ? (
-                        <span className="text-sm text-[#8B4513] font-medium flex items-center gap-1">
-                          <Briefcase size={12} />
-                          {agent.agentMeta.position}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
+                      <span className="text-sm text-gray-600">{agent.databaseId}</span>
                     </td>
                     <td className="p-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
@@ -388,16 +330,6 @@ export default function AgentesPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {agent.agentMeta?.whatsapp && (
-                          <a
-                            href={getWhatsAppLink(agent.agentMeta.whatsapp)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors"
-                          >
-                            <MessageSquare size={14} />
-                          </a>
-                        )}
                         <Button variant="ghost" size="icon" onClick={() => handleViewAgent(agent)} title="Ver detalles" className="h-8 w-8">
                           <Eye size={14} />
                         </Button>
@@ -419,7 +351,7 @@ export default function AgentesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center">
+                  <td colSpan={4} className="p-8 text-center">
                     <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-gray-500">No se encontraron agentes</p>
                   </td>
