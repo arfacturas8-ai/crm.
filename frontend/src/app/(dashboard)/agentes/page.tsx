@@ -64,6 +64,7 @@ interface Property {
     bathrooms?: number;
     propertySize?: number;
     address?: string;
+    agent?: number | string;
   };
   featuredImage?: { node: { sourceUrl: string } };
 }
@@ -83,18 +84,28 @@ export default function AgentesPage() {
     fetchPolicy: 'cache-and-network',
   });
 
-  // Fetch agent properties when agent is selected
+  // Fetch all properties
   const { data: propertiesData, refetch: fetchProperties, loading: loadingProperties } = useQuery(GET_AGENT_PROPERTIES, {
-    variables: { agentId: selectedAgent?.databaseId || 0, first: 50 },
-    skip: !selectedAgent,
+    variables: { first: 100 },
   });
 
-  // Update properties when data changes
+  // Filter properties by selected agent
   useEffect(() => {
-    if (propertiesData?.properties?.nodes) {
-      setAgentProperties(propertiesData.properties.nodes);
+    if (propertiesData?.properties?.nodes && selectedAgent) {
+      const allProperties = propertiesData.properties.nodes;
+      // Filter properties that belong to this agent
+      const agentProps = allProperties.filter((prop: Property) => {
+        const agentId = prop.propertyMeta?.agent;
+        return agentId && (
+          String(agentId) === String(selectedAgent.databaseId) ||
+          agentId === selectedAgent.databaseId
+        );
+      });
+      setAgentProperties(agentProps);
+    } else {
+      setAgentProperties([]);
     }
-  }, [propertiesData]);
+  }, [propertiesData, selectedAgent]);
 
   // Delete agent mutation
   const [deleteAgent, { loading: deletingAgent }] = useMutation(DELETE_AGENT, {

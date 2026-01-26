@@ -54,6 +54,7 @@ interface Property {
     bathrooms?: number;
     propertySize?: number;
     address?: string;
+    agent?: number | string;
   };
   featuredImage?: { node: { sourceUrl: string } };
 }

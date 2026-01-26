@@ -65,10 +65,10 @@ export const GET_AGENT = gql`
   }
 `;
 
-// Get agent's properties (listings) from Houzez
+// Get agent's properties (listings) - query all properties and filter by agent relationship
 export const GET_AGENT_PROPERTIES = gql`
-  query GetAgentProperties($agentId: Int!, $first: Int) {
-    properties(first: $first, where: { author: $agentId }) {
+  query GetAgentProperties($first: Int) {
+    properties(first: $first) {
       nodes {
         id
         databaseId
@@ -83,6 +83,7 @@ export const GET_AGENT_PROPERTIES = gql`
           bathrooms
           propertySize
           address
+          agent
         }
         featuredImage {
           node {
