@@ -52,6 +52,7 @@ export const GET_DEALS_BY_STAGE = gql`
         propertyId
         stage
         value
+        agentId
         createdAt
       }
       totalCount

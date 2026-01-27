@@ -4,17 +4,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Users,
+  UserPlus,
   Kanban,
-  Search,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Menu,
   X,
-  CalendarCheck,
+  Calendar,
   UserCog,
-  Settings,
+  Home,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -22,10 +21,10 @@ import { useAuthStore } from '@/store/auth-store';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Leads', href: '/leads', icon: Users },
-  { name: 'Deals', href: '/deals', icon: Kanban },
-  { name: 'Actividades', href: '/activities', icon: CalendarCheck },
-  { name: 'Busquedas', href: '/enquiries', icon: Search },
+  { name: 'Nuevo', href: '/leads', icon: UserPlus },
+  { name: 'Seguimiento', href: '/deals', icon: Kanban },
+  { name: 'Calendario', href: '/calendario', icon: Calendar },
+  { name: 'Propietario', href: '/propietario', icon: Home },
 ];
 
 const adminNavigation = [

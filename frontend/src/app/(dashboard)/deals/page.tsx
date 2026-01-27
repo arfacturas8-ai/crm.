@@ -1,73 +1,145 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import {
   Plus,
   Search,
-  Grid3X3,
-  List,
   GripVertical,
   Trash2,
-  Settings,
   Building2,
   Calendar,
+  User,
+  DollarSign,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { GET_DEALS_BY_STAGE, UPDATE_DEAL, DELETE_DEAL } from '@/graphql/queries/deals';
+import { GET_LEADS } from '@/graphql/queries/leads';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
-import { usePipelineStore, mapLegacyStage } from '@/store/pipeline-store';
 import { cn, formatRelativeTime, formatCurrency } from '@/lib/utils';
 import { type Deal } from '@/types';
 import { DealForm } from '@/components/deals/DealForm';
 import { DealDetail } from '@/components/deals/DealDetail';
-import { PipelineSettings } from '@/components/deals/PipelineSettings';
+import { useDataPrivacy } from '@/hooks/useDataPrivacy';
 
-type ViewMode = 'kanban' | 'list';
+// Query to get properties for enriching deals
+const GET_PROPERTIES_FOR_DEALS = gql`
+  query GetPropertiesForDeals {
+    properties(first: 500) {
+      nodes {
+        id
+        databaseId
+        title
+        propertyMeta {
+          address
+          price
+        }
+      }
+    }
+  }
+`;
+
+// Pipeline tabs
+type PipelineTab = 'potencial' | 'seguimiento' | 'venta';
+
+// Preset stages for each pipeline
+const PRESET_STAGES = {
+  potencial: [
+    { id: 'nuevo', label: 'Nuevo', color: 'bg-blue-500' },
+    { id: 'contactado', label: 'Contactado', color: 'bg-cyan-500' },
+    { id: 'visita-programada', label: 'Visita Programada', color: 'bg-purple-500' },
+    { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
+  ],
+  seguimiento: [
+    { id: 'seguimiento', label: 'Seguimiento', color: 'bg-amber-500' },
+    { id: 'reserva', label: 'Reserva', color: 'bg-orange-500' },
+    { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
+  ],
+  venta: [
+    { id: 'formalizado', label: 'Formalizado', color: 'bg-emerald-500' },
+    { id: 'ganado', label: 'Ganado', color: 'bg-green-600' },
+    { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
+  ],
+};
+
+// Map deal stages to pipeline tabs
+const getStagePipeline = (stage: string): PipelineTab => {
+  const lowerStage = stage?.toLowerCase() || '';
+  if (['nuevo', 'contactado', 'visita-programada', 'new', 'contacted'].includes(lowerStage)) {
+    return 'potencial';
+  }
+  if (['seguimiento', 'reserva', 'follow-up', 'reservation'].includes(lowerStage)) {
+    return 'seguimiento';
+  }
+  if (['formalizado', 'ganado', 'formalized', 'won', 'closed'].includes(lowerStage)) {
+    return 'venta';
+  }
+  return 'potencial'; // Default
+};
 
 export default function DealsPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<PipelineTab>('potencial');
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [tabSearch, setTabSearch] = useState('');
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
   const { openModal, closeModal, addNotification } = useUIStore();
-  const { stages } = usePipelineStore();
-  const sortedStages = useMemo(() => [...stages].sort((a, b) => a.order - b.order), [stages]);
 
   const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
-  const allDeals: Deal[] = data?.deals?.nodes || [];
+  const { data: propertiesData } = useQuery(GET_PROPERTIES_FOR_DEALS);
+  const { data: leadsData } = useQuery(GET_LEADS, { variables: { first: 500 } });
 
-  const dealsByStage = useMemo(() => {
-    const grouped: Record<string, Deal[]> = {};
-    sortedStages.forEach((stage) => {
-      grouped[stage.id] = [];
+  // Create lookup maps for properties and leads
+  const propertiesMap = useMemo(() => {
+    const map = new Map<number, { title: string; address?: string; price?: number }>();
+    propertiesData?.properties?.nodes?.forEach((prop: any) => {
+      map.set(prop.databaseId, {
+        title: prop.title,
+        address: prop.propertyMeta?.address,
+        price: prop.propertyMeta?.price,
+      });
     });
-    allDeals.forEach((deal) => {
-      const mappedStage = mapLegacyStage(deal.stage);
-      if (grouped[mappedStage]) {
-        grouped[mappedStage].push(deal);
-      } else {
-        const firstActiveStage = sortedStages.find((s) => s.type === 'active');
-        if (firstActiveStage) {
-          grouped[firstActiveStage.id].push(deal);
-        }
-      }
-    });
-    return grouped;
-  }, [allDeals, sortedStages]);
+    return map;
+  }, [propertiesData]);
 
-  const stageValues = useMemo(() => {
-    const values: Record<string, number> = {};
-    Object.entries(dealsByStage).forEach(([stageId, deals]) => {
-      values[stageId] = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
+  const leadsMap = useMemo(() => {
+    const map = new Map<number, { name: string; email?: string; phone?: string }>();
+    leadsData?.leads?.nodes?.forEach((lead: any) => {
+      map.set(parseInt(lead.id), {
+        name: lead.name,
+        email: lead.email,
+        phone: lead.mobile,
+      });
     });
-    return values;
-  }, [dealsByStage]);
+    return map;
+  }, [leadsData]);
+
+  // Enrich deals with property and lead information
+  const rawDeals: Deal[] = useMemo(() => {
+    const deals = data?.deals?.nodes || [];
+    return deals.map((deal: any) => {
+      const property = deal.propertyId ? propertiesMap.get(deal.propertyId) : null;
+      const lead = deal.leadId ? leadsMap.get(deal.leadId) : null;
+      return {
+        ...deal,
+        propertyTitle: property?.title,
+        propertyAddress: property?.address,
+        contactName: lead?.name,
+        contactEmail: lead?.email,
+        contactPhone: lead?.phone,
+      };
+    });
+  }, [data, propertiesMap, leadsMap]);
+
+  // Apply data privacy filter - agents see only their data
+  const allDeals = useDataPrivacy<Deal>(rawDeals);
 
   const [updateDeal] = useMutation(UPDATE_DEAL, {
     refetchQueries: ['GetDealsByStage', 'GetDashboardStats'],
@@ -84,13 +156,82 @@ export default function DealsPage() {
     },
   });
 
-  const handleDelete = (dealId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm('Eliminar este deal?')) {
-      deleteDeal({ variables: { input: { id: dealId } } });
-    }
-  };
+  // Global search filter
+  const globalFilteredDeals = useMemo(() => {
+    if (!globalSearch) return allDeals;
+    const searchLower = globalSearch.toLowerCase();
+    return allDeals.filter((deal) => {
+      const titleMatch = deal.title?.toLowerCase().includes(searchLower);
+      const notesMatch = deal.notes?.toLowerCase().includes(searchLower);
+      const valueMatch = deal.value?.toString().includes(globalSearch);
+      const stageMatch = deal.stage?.toLowerCase().includes(searchLower);
+      const contactMatch = deal.contactName?.toLowerCase().includes(searchLower);
+      const emailMatch = deal.contactEmail?.toLowerCase().includes(searchLower);
+      const phoneMatch = deal.contactPhone?.includes(globalSearch);
+      const propertyMatch = deal.propertyTitle?.toLowerCase().includes(searchLower);
+      return titleMatch || notesMatch || valueMatch || stageMatch || contactMatch || emailMatch || phoneMatch || propertyMatch;
+    });
+  }, [allDeals, globalSearch]);
 
+  // Filter deals by active tab and tab search
+  const tabFilteredDeals = useMemo(() => {
+    let deals = globalFilteredDeals.filter((deal) => getStagePipeline(deal.stage) === activeTab);
+
+    if (tabSearch) {
+      const searchLower = tabSearch.toLowerCase();
+      deals = deals.filter((deal) => {
+        const titleMatch = deal.title?.toLowerCase().includes(searchLower);
+        const notesMatch = deal.notes?.toLowerCase().includes(searchLower);
+        const valueMatch = deal.value?.toString().includes(tabSearch);
+        const stageMatch = deal.stage?.toLowerCase().includes(searchLower);
+        return titleMatch || notesMatch || valueMatch || stageMatch;
+      });
+    }
+
+    return deals;
+  }, [globalFilteredDeals, activeTab, tabSearch]);
+
+  // Group deals by stage for Kanban
+  const dealsByStage = useMemo(() => {
+    const stages = PRESET_STAGES[activeTab];
+    const grouped: Record<string, Deal[]> = {};
+    stages.forEach((stage) => {
+      grouped[stage.id] = [];
+    });
+
+    tabFilteredDeals.forEach((deal) => {
+      const normalizedStage = deal.stage?.toLowerCase().replace(/\s+/g, '-') || 'nuevo';
+      if (grouped[normalizedStage]) {
+        grouped[normalizedStage].push(deal);
+      } else {
+        // Put in first stage if not found
+        const firstStage = stages[0].id;
+        grouped[firstStage]?.push(deal);
+      }
+    });
+
+    return grouped;
+  }, [tabFilteredDeals, activeTab]);
+
+  // Stage values
+  const stageValues = useMemo(() => {
+    const values: Record<string, number> = {};
+    Object.entries(dealsByStage).forEach(([stageId, deals]) => {
+      values[stageId] = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
+    });
+    return values;
+  }, [dealsByStage]);
+
+  // Tab counts
+  const tabCounts = useMemo(() => {
+    return {
+      potencial: globalFilteredDeals.filter((d) => getStagePipeline(d.stage) === 'potencial').length,
+      seguimiento: globalFilteredDeals.filter((d) => getStagePipeline(d.stage) === 'seguimiento').length,
+      venta: globalFilteredDeals.filter((d) => getStagePipeline(d.stage) === 'venta').length,
+    };
+  }, [globalFilteredDeals]);
+
+  // Drag handlers
   const handleDragStart = (deal: Deal) => setDraggedDeal(deal);
   const handleDragOver = (e: React.DragEvent, stageId: string) => {
     e.preventDefault();
@@ -100,7 +241,7 @@ export default function DealsPage() {
   const handleDrop = (e: React.DragEvent, targetStage: string) => {
     e.preventDefault();
     setDragOverColumn(null);
-    if (draggedDeal && mapLegacyStage(draggedDeal.stage) !== targetStage) {
+    if (draggedDeal && draggedDeal.stage !== targetStage) {
       updateDeal({ variables: { input: { id: draggedDeal.id, stage: targetStage } } });
     }
     setDraggedDeal(null);
@@ -110,223 +251,236 @@ export default function DealsPage() {
     setDragOverColumn(null);
   };
 
-  const filterDeals = (deals: Deal[]) => {
-    if (!search) return deals;
-    return deals.filter((deal) => deal.title?.toLowerCase().includes(search.toLowerCase()));
+  const handleDelete = (dealId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('¿Eliminar este seguimiento?')) {
+      deleteDeal({ variables: { input: { id: dealId } } });
+    }
   };
 
-  const getStageDeals = (stageId: string) => filterDeals(dealsByStage[stageId] || []);
+  const stages = PRESET_STAGES[activeTab];
 
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Pipeline de Ventas</h1>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Seguimiento</h1>
           <p className="text-gray-500 text-sm">
-            {allDeals.length} deals - Total: {formatCurrency(allDeals.reduce((sum, d) => sum + (d.value || 0), 0))}
+            {allDeals.length} registros - Total: {formatCurrency(allDeals.reduce((sum, d) => sum + (d.value || 0), 0))}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
-            <button
-              className={cn('px-3 py-2', viewMode === 'kanban' ? 'bg-[#8B4513] text-white' : 'text-gray-600 hover:bg-gray-50')}
-              onClick={() => setViewMode('kanban')}
-            >
-              <Grid3X3 size={16} />
-            </button>
-            <button
-              className={cn('px-3 py-2', viewMode === 'list' ? 'bg-[#8B4513] text-white' : 'text-gray-600 hover:bg-gray-50')}
-              onClick={() => setViewMode('list')}
-            >
-              <List size={16} />
-            </button>
-          </div>
-          <Button variant="outline" onClick={() => openModal('pipeline-settings')} className="border-gray-200 bg-white">
-            <Settings size={16} />
-          </Button>
-          <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-deal')}>
-            Nuevo Deal
-          </Button>
-        </div>
+        <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-deal')}>
+          Nuevo Seguimiento
+        </Button>
       </div>
 
-      {/* Search */}
+      {/* Global Search */}
+      <Card className="p-3 mb-4 bg-white border-gray-200">
+        <Input
+          placeholder="Buscar en todo: nombre, notas, propiedad, monto, teléfono, email, etiqueta..."
+          leftIcon={<Search size={16} />}
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          className="bg-white border-gray-200"
+        />
+      </Card>
+
+      {/* Pipeline Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-gray-200">
+        <button
+          onClick={() => { setActiveTab('potencial'); setTabSearch(''); }}
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'potencial'
+              ? 'text-blue-600 border-blue-600'
+              : 'text-gray-500 border-transparent hover:text-gray-700'
+          )}
+        >
+          Potencial
+          <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+            {tabCounts.potencial}
+          </span>
+        </button>
+        <button
+          onClick={() => { setActiveTab('seguimiento'); setTabSearch(''); }}
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'seguimiento'
+              ? 'text-amber-600 border-amber-600'
+              : 'text-gray-500 border-transparent hover:text-gray-700'
+          )}
+        >
+          Seguimiento
+          <span className="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
+            {tabCounts.seguimiento}
+          </span>
+        </button>
+        <button
+          onClick={() => { setActiveTab('venta'); setTabSearch(''); }}
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'venta'
+              ? 'text-green-600 border-green-600'
+              : 'text-gray-500 border-transparent hover:text-gray-700'
+          )}
+        >
+          Venta
+          <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
+            {tabCounts.venta}
+          </span>
+        </button>
+      </div>
+
+      {/* Tab Search */}
       <div className="mb-4">
         <Input
-          placeholder="Buscar deals..."
-          leftIcon={<Search size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs bg-white border-gray-200"
+          placeholder={`Buscar en ${activeTab === 'potencial' ? 'Potencial' : activeTab === 'seguimiento' ? 'Seguimiento' : 'Venta'}...`}
+          leftIcon={<Search size={14} />}
+          value={tabSearch}
+          onChange={(e) => setTabSearch(e.target.value)}
+          className="max-w-xs bg-white border-gray-200 text-sm"
         />
       </div>
 
       {/* Kanban Board */}
-      {viewMode === 'kanban' && (
-        <div className="flex-1 overflow-x-auto overflow-y-hidden -mx-4 px-4 lg:-mx-6 lg:px-6">
-          <div className="flex gap-3 pb-4 min-w-max">
-            {sortedStages.map((stage) => {
-              const deals = getStageDeals(stage.id);
-              const isDropTarget = dragOverColumn === stage.id;
-              const stageValue = stageValues[stage.id] || 0;
+      <div className="flex-1 overflow-x-auto overflow-y-hidden -mx-4 px-4 lg:-mx-6 lg:px-6">
+        <div className="flex gap-3 pb-4 min-w-max">
+          {stages.map((stage) => {
+            const deals = dealsByStage[stage.id] || [];
+            const isDropTarget = dragOverColumn === stage.id;
+            const stageValue = stageValues[stage.id] || 0;
 
-              return (
-                <div
-                  key={stage.id}
-                  className={cn(
-                    'w-64 lg:w-72 flex-shrink-0 bg-gray-50 rounded-lg flex flex-col',
-                    isDropTarget && 'ring-2 ring-[#8B4513]'
-                  )}
-                  style={{ maxHeight: 'calc(100vh - 280px)' }}
-                  onDragOver={(e) => handleDragOver(e, stage.id)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, stage.id)}
-                >
-                  {/* Column Header */}
-                  <div className="p-3 border-b border-gray-200 bg-white rounded-t-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={cn('w-2.5 h-2.5 rounded-full', stage.color)} />
-                        <span className="font-medium text-gray-900 text-sm">{stage.label}</span>
-                      </div>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                        {deals.length}
-                      </span>
+            return (
+              <div
+                key={stage.id}
+                className={cn(
+                  'w-72 lg:w-80 flex-shrink-0 bg-gray-50 rounded-lg flex flex-col',
+                  isDropTarget && 'ring-2 ring-[#8B4513]'
+                )}
+                style={{ maxHeight: 'calc(100vh - 380px)' }}
+                onDragOver={(e) => handleDragOver(e, stage.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, stage.id)}
+              >
+                {/* Column Header */}
+                <div className="p-3 border-b border-gray-200 bg-white rounded-t-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={cn('w-3 h-3 rounded-full', stage.color)} />
+                      <span className="font-medium text-gray-900">{stage.label}</span>
                     </div>
-                    {stageValue > 0 && (
-                      <p className="text-xs text-gray-500 mt-1">{formatCurrency(stageValue)}</p>
-                    )}
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                      {deals.length}
+                    </span>
                   </div>
-
-                  {/* Cards */}
-                  <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                    {loading ? (
-                      [...Array(2)].map((_, i) => (
-                        <div key={i} className="animate-pulse bg-white rounded h-20 border border-gray-100" />
-                      ))
-                    ) : deals.length > 0 ? (
-                      deals.map((deal) => (
-                        <div
-                          key={deal.id}
-                          className={cn(
-                            'bg-white rounded-lg p-3 border border-gray-100 cursor-pointer hover:border-gray-300 transition-all',
-                            draggedDeal?.id === deal.id && 'opacity-50'
-                          )}
-                          draggable
-                          onDragStart={() => handleDragStart(deal)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => { setSelectedDeal(deal); openModal('view-deal'); }}
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <GripVertical size={12} className="text-gray-300 cursor-grab" />
-                              <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center">
-                                <Building2 size={12} className="text-gray-500" />
-                              </div>
-                            </div>
-                            <button className="text-gray-300 hover:text-red-500 p-0.5" onClick={(e) => handleDelete(deal.id, e)}>
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                          <p className="font-medium text-gray-900 text-sm line-clamp-2">{deal.title}</p>
-                          {deal.value && (
-                            <p className="text-sm font-semibold text-[#8B4513] mt-2">{formatCurrency(deal.value)}</p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                            <Calendar size={10} />
-                            {formatRelativeTime(deal.createdAt)}
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 text-gray-400">
-                        <Building2 size={20} className="mx-auto mb-1 opacity-30" />
-                        <p className="text-xs">Sin deals</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Add Button */}
-                  <div className="p-2">
-                    <button
-                      className="w-full py-1.5 border border-dashed border-gray-200 rounded text-gray-400 hover:border-[#8B4513] hover:text-[#8B4513] transition-colors flex items-center justify-center gap-1 text-xs"
-                      onClick={() => openModal('create-deal')}
-                    >
-                      <Plus size={12} /> Agregar
-                    </button>
-                  </div>
+                  {stageValue > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">{formatCurrency(stageValue)}</p>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* List View */}
-      {viewMode === 'list' && (
-        <Card className="bg-white border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase">Titulo</th>
-                  <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase">Valor</th>
-                  <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase">Etapa</th>
-                  <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                  <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i}><td className="p-3" colSpan={5}><div className="animate-pulse h-10 bg-gray-100 rounded" /></td></tr>
-                  ))
-                ) : filterDeals(allDeals).map((deal: Deal) => {
-                  const mappedStage = mapLegacyStage(deal.stage);
-                  const stageData = stages.find((s) => s.id === mappedStage);
-                  return (
-                    <tr key={deal.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                            <Building2 size={14} className="text-gray-500" />
+                {/* Cards */}
+                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {loading ? (
+                    [...Array(2)].map((_, i) => (
+                      <div key={i} className="animate-pulse bg-white rounded-lg h-24 border border-gray-100" />
+                    ))
+                  ) : deals.length > 0 ? (
+                    deals.map((deal) => (
+                      <div
+                        key={deal.id}
+                        className={cn(
+                          'bg-white rounded-lg p-3 border border-gray-100 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all',
+                          draggedDeal?.id === deal.id && 'opacity-50'
+                        )}
+                        draggable
+                        onDragStart={() => handleDragStart(deal)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => { setSelectedDeal(deal); openModal('view-deal'); }}
+                      >
+                        {/* Drag handle & delete */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <GripVertical size={14} className="text-gray-300 cursor-grab mt-0.5" />
+                          <button
+                            className="text-gray-300 hover:text-red-500 p-0.5"
+                            onClick={(e) => handleDelete(deal.id, e)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        {/* Lead/Contact Name - FIRST */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                            <User size={14} className="text-[#8B4513]" />
                           </div>
-                          <span className="font-medium text-gray-900 text-sm">{deal.title}</span>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm truncate">
+                              {deal.contactName || deal.title}
+                            </p>
+                            {deal.contactPhone && (
+                              <p className="text-xs text-gray-500 flex items-center gap-1">
+                                <Phone size={10} />
+                                {deal.contactPhone}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-3"><span className="font-semibold text-[#8B4513] text-sm">{deal.value ? formatCurrency(deal.value) : '-'}</span></td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className={cn('w-2 h-2 rounded-full', stageData?.color || 'bg-gray-400')} />
-                          <span className="text-sm text-gray-600">{stageData?.label || deal.stage}</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-sm text-gray-500">{formatRelativeTime(deal.createdAt)}</td>
-                      <td className="p-3">
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => { setSelectedDeal(deal); openModal('view-deal'); }}>Ver</Button>
-                          <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={(e) => handleDelete(deal.id, e as any)}><Trash2 size={14} /></Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+
+                        {/* Property - BELOW */}
+                        {deal.propertyTitle && (
+                          <div className="bg-gray-50 rounded p-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <Building2 size={12} className="text-gray-400" />
+                              <p className="text-xs text-gray-600 truncate">{deal.propertyTitle}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Value */}
+                        {deal.value && (
+                          <p className="text-sm font-bold text-[#8B4513] flex items-center gap-1">
+                            <DollarSign size={14} />
+                            {formatCurrency(deal.value)}
+                          </p>
+                        )}
+
+                        {/* Date */}
+                        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                          <Calendar size={10} />
+                          {formatRelativeTime(deal.createdAt)}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Building2 size={24} className="mx-auto mb-2 opacity-30" />
+                      <p className="text-xs">Sin registros</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Button */}
+                <div className="p-2">
+                  <button
+                    className="w-full py-2 border border-dashed border-gray-200 rounded-lg text-gray-400 hover:border-[#8B4513] hover:text-[#8B4513] transition-colors flex items-center justify-center gap-1 text-sm"
+                    onClick={() => openModal('create-deal')}
+                  >
+                    <Plus size={14} /> Agregar
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Modals */}
-      <Modal id="create-deal" title="Nuevo Deal" size="lg">
+      <Modal id="create-deal" title="Nuevo Seguimiento" size="lg">
         <DealForm onSuccess={() => { closeModal(); refetch(); }} />
       </Modal>
       <Modal id="view-deal" title="" size="full">
         {selectedDeal && <DealDetail deal={selectedDeal} onClose={() => { closeModal(); refetch(); }} />}
-      </Modal>
-      <Modal id="pipeline-settings" title="Configurar Pipeline" size="lg">
-        <PipelineSettings />
       </Modal>
     </div>
   );

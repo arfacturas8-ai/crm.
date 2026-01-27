@@ -32,6 +32,8 @@ import {
 import { LEAD_SOURCE_LABELS, type Lead, type LeadSource } from '@/types';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadDetail } from '@/components/leads/LeadDetail';
+import { ImportExportModal } from '@/components/leads/ImportExportModal';
+import { useDataPrivacy } from '@/hooks/useDataPrivacy';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos los estados' },
@@ -53,6 +55,7 @@ export default function LeadsPage() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [deleteConfirmLead, setDeleteConfirmLead] = useState<Lead | null>(null);
+  const [showImportExport, setShowImportExport] = useState(false);
 
   const { openModal, closeModal } = useUIStore();
   const { hasMinimumRole } = useAuthStore();
@@ -75,8 +78,10 @@ export default function LeadsPage() {
     },
   });
 
-  const leads = data?.leads?.nodes || [];
-  const totalCount = data?.leads?.totalCount || 0;
+  const allLeads: Lead[] = data?.leads?.nodes || [];
+  // Apply data privacy filter - agents see only their data
+  const leads = useDataPrivacy<Lead>(allLeads);
+  const totalCount = leads.length;
 
   // Debounced search
   const handleSearch = debounce((value: string) => {
@@ -94,11 +99,13 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" leftIcon={<Upload size={14} />} className="text-xs lg:text-sm border-gray-200 bg-white hidden sm:flex">
-            Importar
-          </Button>
-          <Button variant="outline" leftIcon={<Download size={14} />} className="text-xs lg:text-sm border-gray-200 bg-white hidden sm:flex">
-            Exportar
+          <Button
+            variant="outline"
+            leftIcon={<Upload size={14} />}
+            className="text-xs lg:text-sm border-gray-200 bg-white hidden sm:flex"
+            onClick={() => setShowImportExport(true)}
+          >
+            Importar/Exportar
           </Button>
           <Button leftIcon={<Plus size={14} />} onClick={() => openModal('create-lead')} className="text-xs lg:text-sm">
             Nuevo Lead
@@ -434,6 +441,18 @@ export default function LeadsPage() {
             </div>
           </Card>
         </div>
+      )}
+
+      {/* Import/Export Modal */}
+      {showImportExport && (
+        <ImportExportModal
+          leads={leads}
+          onClose={() => setShowImportExport(false)}
+          onImportComplete={() => {
+            refetch();
+            setShowImportExport(false);
+          }}
+        />
       )}
     </div>
   );

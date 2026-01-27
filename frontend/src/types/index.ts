@@ -59,8 +59,16 @@ export interface Deal {
   propertyId?: number;
   stage: DealStage;
   value?: number;
+  agentId?: string | number;
   createdAt: string;
   notes?: string;
+  // Contact info (from linked lead)
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  // Property info
+  propertyTitle?: string;
+  propertyAddress?: string;
 }
 
 // Enquiry Types
