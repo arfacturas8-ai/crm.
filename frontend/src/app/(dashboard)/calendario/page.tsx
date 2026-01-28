@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -10,9 +10,9 @@ import {
   MapPin,
   RefreshCw,
   Link,
-  Copy,
   Check,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -30,7 +30,7 @@ interface CalendarEvent {
   end: Date;
   location?: string;
   isPersonal?: boolean;
-  agentId?: string;
+  source: 'general' | 'outlook';
 }
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -39,17 +39,23 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+const OUTLOOK_URL_KEY = 'habitacr_outlook_url';
+
 export default function CalendarioPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [generalEvents, setGeneralEvents] = useState<CalendarEvent[]>([]);
+  const [outlookEvents, setOutlookEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingOutlook, setLoadingOutlook] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showGeneral, setShowGeneral] = useState(true);
   const [showPersonal, setShowPersonal] = useState(true);
 
-  const [showSubscription, setShowSubscription] = useState(false);
-  const [copiedGeneral, setCopiedGeneral] = useState(false);
-  const [copiedPersonal, setCopiedPersonal] = useState(false);
+  // Outlook connection
+  const [showOutlookSetup, setShowOutlookSetup] = useState(false);
+  const [outlookUrl, setOutlookUrl] = useState('');
+  const [outlookConnected, setOutlookConnected] = useState(false);
+  const [outlookUrlInput, setOutlookUrlInput] = useState('');
 
   // Event creation
   const [eventType, setEventType] = useState<'general' | 'personal'>('personal');
@@ -66,9 +72,18 @@ export default function CalendarioPage() {
   const { user, isAdmin } = useAuthStore();
   const userIsAdmin = isAdmin();
 
-  // Fetch events from CalDAV (sends agentId so API filters personal events)
-  const fetchEvents = async () => {
-    setLoading(true);
+  // Load saved Outlook URL on mount
+  useEffect(() => {
+    const savedUrl = localStorage.getItem(OUTLOOK_URL_KEY);
+    if (savedUrl) {
+      setOutlookUrl(savedUrl);
+      setOutlookUrlInput(savedUrl);
+      setOutlookConnected(true);
+    }
+  }, []);
+
+  // Fetch general events from CalDAV
+  const fetchGeneralEvents = useCallback(async () => {
     try {
       const response = await fetch('/api/calendar/events', {
         method: 'POST',
@@ -76,54 +91,106 @@ export default function CalendarioPage() {
         body: JSON.stringify({
           year: currentDate.getFullYear(),
           month: currentDate.getMonth() + 1,
-          agentId: user?.id,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setEvents(data.events.map((e: any) => ({
+        setGeneralEvents(data.events.map((e: any) => ({
           ...e,
           start: new Date(e.start),
           end: new Date(e.end),
+          source: 'general' as const,
+          isPersonal: false,
         })));
       }
     } catch (error) {
-      console.error('Error fetching events:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching general events:', error);
     }
+  }, [currentDate]);
+
+  // Fetch Outlook events via proxy
+  const fetchOutlookEvents = useCallback(async () => {
+    if (!outlookUrl) return;
+
+    setLoadingOutlook(true);
+    try {
+      const response = await fetch('/api/calendar/outlook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: outlookUrl }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setOutlookEvents(data.events.map((e: any) => ({
+          ...e,
+          start: new Date(e.start),
+          end: new Date(e.end),
+          source: 'outlook' as const,
+          isPersonal: true,
+        })));
+      } else {
+        console.error('Failed to fetch Outlook events');
+      }
+    } catch (error) {
+      console.error('Error fetching Outlook events:', error);
+    } finally {
+      setLoadingOutlook(false);
+    }
+  }, [outlookUrl]);
+
+  // Fetch both on mount and month change
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      fetchGeneralEvents(),
+      outlookUrl ? fetchOutlookEvents() : Promise.resolve(),
+    ]).finally(() => setLoading(false));
+  }, [currentDate.getMonth(), currentDate.getFullYear(), fetchGeneralEvents, fetchOutlookEvents, outlookUrl]);
+
+  // Combined events
+  const allEvents = [
+    ...(showGeneral ? generalEvents : []),
+    ...(showPersonal ? outlookEvents : []),
+  ];
+
+  // Save Outlook URL
+  const handleConnectOutlook = () => {
+    if (!outlookUrlInput.trim()) {
+      addNotification({ type: 'error', title: 'Error', message: 'Ingrese la URL del calendario de Outlook' });
+      return;
+    }
+    if (!outlookUrlInput.startsWith('https://')) {
+      addNotification({ type: 'error', title: 'Error', message: 'La URL debe empezar con https://' });
+      return;
+    }
+
+    localStorage.setItem(OUTLOOK_URL_KEY, outlookUrlInput.trim());
+    setOutlookUrl(outlookUrlInput.trim());
+    setOutlookConnected(true);
+    setShowOutlookSetup(false);
+    addNotification({ type: 'success', title: 'Outlook conectado', message: 'Su calendario de Outlook se ha vinculado correctamente' });
+
+    // Fetch immediately
+    fetchOutlookEvents();
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [currentDate.getMonth(), currentDate.getFullYear()]);
+  const handleDisconnectOutlook = () => {
+    localStorage.removeItem(OUTLOOK_URL_KEY);
+    setOutlookUrl('');
+    setOutlookUrlInput('');
+    setOutlookConnected(false);
+    setOutlookEvents([]);
+    addNotification({ type: 'success', title: 'Desconectado', message: 'Se ha desvinculado el calendario de Outlook' });
+  };
 
-  // Feed URLs
-  const feedToken = process.env.NEXT_PUBLIC_CALENDAR_FEED_TOKEN || '';
-  const generalFeedUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/calendar/feed?token=${feedToken}&type=general`
-    : '';
-  const personalFeedUrl = typeof window !== 'undefined' && user?.id
-    ? `${window.location.origin}/api/calendar/feed?token=${feedToken}&type=personal&agentId=${user.id}`
-    : '';
-
-  const copyUrl = async (url: string, setter: (v: boolean) => void) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setter(true);
-      addNotification({ type: 'success', title: 'Copiado', message: 'URL del calendario copiada' });
-      setTimeout(() => setter(false), 2000);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = url;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setter(true);
-      setTimeout(() => setter(false), 2000);
-    }
+  const handleRefresh = () => {
+    setLoading(true);
+    Promise.all([
+      fetchGeneralEvents(),
+      outlookUrl ? fetchOutlookEvents() : Promise.resolve(),
+    ]).finally(() => setLoading(false));
   };
 
   // Calendar navigation
@@ -137,14 +204,11 @@ export default function CalendarioPage() {
     setCurrentDate(new Date());
   };
 
-  // Generate calendar days
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startingDay = firstDay.getDay();
-    const totalDays = lastDay.getDate();
+    const startingDay = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
 
     const days: (Date | null)[] = [];
     for (let i = 0; i < startingDay; i++) days.push(null);
@@ -152,18 +216,14 @@ export default function CalendarioPage() {
     return days;
   };
 
-  // Get events for a specific day, filtered by visibility toggles
   const getEventsForDay = (date: Date) => {
-    return events.filter(event => {
-      const eventDate = new Date(event.start);
-      const sameDay =
-        eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear();
-      if (!sameDay) return false;
-      if (event.isPersonal && !showPersonal) return false;
-      if (!event.isPersonal && !showGeneral) return false;
-      return true;
+    return allEvents.filter(event => {
+      const d = new Date(event.start);
+      return (
+        d.getDate() === date.getDate() &&
+        d.getMonth() === date.getMonth() &&
+        d.getFullYear() === date.getFullYear()
+      );
     });
   };
 
@@ -176,7 +236,7 @@ export default function CalendarioPage() {
     );
   };
 
-  // Handle create event
+  // Create event (general goes to CalDAV)
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -185,9 +245,7 @@ export default function CalendarioPage() {
       return;
     }
 
-    // Only admins can create general events
-    const isPersonal = eventType === 'personal';
-    if (!isPersonal && !userIsAdmin) {
+    if (eventType === 'general' && !userIsAdmin) {
       addNotification({ type: 'error', title: 'Sin permisos', message: 'Solo administradores pueden crear eventos generales' });
       return;
     }
@@ -202,18 +260,15 @@ export default function CalendarioPage() {
           start: `${newEvent.date}T${newEvent.startTime}:00`,
           end: `${newEvent.date}T${newEvent.endTime}:00`,
           location: newEvent.location,
-          isPersonal,
-          agentId: isPersonal ? user?.id : undefined,
+          isPersonal: false,
         }),
       });
 
       if (response.ok) {
-        const label = isPersonal ? 'tu agenda personal' : 'la agenda general';
-        addNotification({ type: 'success', title: 'Evento creado', message: `El evento se ha agregado a ${label}` });
+        addNotification({ type: 'success', title: 'Evento creado', message: 'El evento se ha agregado a la agenda general' });
         closeModal();
-        fetchEvents();
+        fetchGeneralEvents();
         setNewEvent({ title: '', description: '', date: '', startTime: '09:00', endTime: '10:00', location: '' });
-        setEventType('personal');
       } else {
         throw new Error('Error creating event');
       }
@@ -236,139 +291,124 @@ export default function CalendarioPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowSubscription(!showSubscription)}
-            className="border-gray-200 text-xs lg:text-sm"
+            onClick={() => setShowOutlookSetup(!showOutlookSetup)}
+            className={cn(
+              'border-gray-200 text-xs lg:text-sm',
+              outlookConnected && 'border-green-300 text-green-700'
+            )}
           >
-            <Link size={14} className="mr-1" />
-            <span className="hidden sm:inline">Conectar Outlook</span>
+            {outlookConnected ? <Check size={14} className="mr-1" /> : <Link size={14} className="mr-1" />}
+            <span className="hidden sm:inline">{outlookConnected ? 'Outlook conectado' : 'Conectar Outlook'}</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchEvents}
+            onClick={handleRefresh}
             className="border-gray-200"
           >
-            <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
+            <RefreshCw size={14} className={cn((loading || loadingOutlook) && 'animate-spin')} />
           </Button>
-          <Button
-            leftIcon={<Plus size={14} />}
-            onClick={() => openModal('create-event')}
-            className="text-xs lg:text-sm"
-          >
-            Nuevo Evento
-          </Button>
+          {userIsAdmin && (
+            <Button
+              leftIcon={<Plus size={14} />}
+              onClick={() => openModal('create-event')}
+              className="text-xs lg:text-sm"
+            >
+              Nuevo Evento
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Outlook / Calendar Subscription Panel */}
-      {showSubscription && (
+      {/* Outlook Setup Panel */}
+      {showOutlookSetup && (
         <Card className="p-4 lg:p-5 bg-white border-gray-200">
           <div className="flex items-start justify-between mb-3">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <ExternalLink size={16} />
-              Conectar con Outlook y Otros Calendarios
+              Conectar Calendario de Outlook
             </h3>
             <button
-              onClick={() => setShowSubscription(false)}
-              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              onClick={() => setShowOutlookSetup(false)}
+              className="text-gray-400 hover:text-gray-600"
             >
-              &times;
+              <X size={16} />
             </button>
           </div>
 
-          <p className="text-sm text-gray-600 mb-4">
-            Suscríbase a estas URLs desde Outlook u otra app de calendario. Recibirá los eventos automáticamente.
-          </p>
-
-          {/* General Calendar Feed */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-3 h-3 bg-[#8B4513] rounded-full"></span>
-              <h4 className="text-sm font-medium text-gray-900">Agenda General (todo el equipo)</h4>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={generalFeedUrl}
-                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono truncate"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => copyUrl(generalFeedUrl, setCopiedGeneral)}
-                className="border-gray-200 shrink-0"
-              >
-                {copiedGeneral ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                <span className="ml-1">{copiedGeneral ? 'Copiado' : 'Copiar'}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Personal Calendar Feed */}
-          {personalFeedUrl && (
-            <div className="mb-5">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-3 bg-[#a0522d] rounded-full"></span>
-                <h4 className="text-sm font-medium text-gray-900">Mi Agenda Personal</h4>
+          {outlookConnected ? (
+            <div>
+              <div className="flex items-center gap-2 mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                <Check size={16} className="text-green-600 shrink-0" />
+                <p className="text-sm text-green-800">
+                  Outlook conectado — sus eventos personales se muestran en el calendario.
+                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
                 <input
                   type="text"
                   readOnly
-                  value={personalFeedUrl}
-                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono truncate"
+                  value={outlookUrl}
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500 font-mono truncate"
                 />
+              </div>
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyUrl(personalFeedUrl, setCopiedPersonal)}
-                  className="border-gray-200 shrink-0"
+                  onClick={handleRefresh}
+                  className="border-gray-200"
                 >
-                  {copiedPersonal ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                  <span className="ml-1">{copiedPersonal ? 'Copiado' : 'Copiar'}</span>
+                  <RefreshCw size={14} className="mr-1" />
+                  Sincronizar ahora
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisconnectOutlook}
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  Desvincular
                 </Button>
               </div>
             </div>
-          )}
+          ) : (
+            <div>
+              <p className="text-sm text-gray-600 mb-4">
+                Vincule su calendario de Outlook para ver sus eventos personales junto a la agenda general del equipo.
+              </p>
 
-          {/* Instructions */}
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Instrucciones:</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Microsoft Outlook</h4>
-              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-                <li>Abra Outlook &gt; Calendario</li>
-                <li>Click &quot;Agregar calendario&quot;</li>
-                <li>Seleccione &quot;Desde Internet&quot;</li>
-                <li>Pegue la URL copiada</li>
-                <li>Click &quot;Aceptar&quot;</li>
-                <li>Repita para ambas URLs</li>
-              </ol>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  URL del calendario de Outlook (ICS)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://outlook.office365.com/owa/calendar/..."
+                    value={outlookUrlInput}
+                    onChange={(e) => setOutlookUrlInput(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8B4513]/20 focus:border-[#8B4513]"
+                  />
+                  <Button size="sm" onClick={handleConnectOutlook}>
+                    Conectar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">¿Cómo obtener la URL?</h4>
+                <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                  <li>Abra <strong>Outlook</strong> (web: outlook.office.com)</li>
+                  <li>Vaya a <strong>Configuración</strong> (engranaje)</li>
+                  <li>Busque <strong>Calendario</strong> &gt; <strong>Calendarios compartidos</strong></li>
+                  <li>En &quot;Publicar un calendario&quot;, seleccione su calendario</li>
+                  <li>Elija permisos y click &quot;Publicar&quot;</li>
+                  <li>Copie el enlace <strong>ICS</strong> y péguelo arriba</li>
+                </ol>
+              </div>
             </div>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Google Calendar</h4>
-              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-                <li>Abra Google Calendar</li>
-                <li>Click &quot;+&quot; en &quot;Otros calendarios&quot;</li>
-                <li>Seleccione &quot;Desde URL&quot;</li>
-                <li>Pegue la URL copiada</li>
-                <li>Click &quot;Agregar calendario&quot;</li>
-                <li>Repita para ambas URLs</li>
-              </ol>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Apple Calendar</h4>
-              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-                <li>Abra Calendar</li>
-                <li>Archivo &gt; Nueva suscripción</li>
-                <li>Pegue la URL copiada</li>
-                <li>Click &quot;Suscribirse&quot;</li>
-                <li>Configure frecuencia</li>
-                <li>Repita para ambas URLs</li>
-              </ol>
-            </div>
-          </div>
+          )}
         </Card>
       )}
 
@@ -399,14 +439,21 @@ export default function CalendarioPage() {
             <label htmlFor="show-personal" className="text-sm text-gray-700 flex items-center gap-1">
               <span className="w-3 h-3 bg-[#a0522d] rounded-full"></span>
               Mi Agenda Personal
+              {!outlookConnected && (
+                <span className="text-[10px] text-gray-400 ml-1">(Conecte Outlook)</span>
+              )}
             </label>
           </div>
+          {outlookConnected && outlookEvents.length > 0 && (
+            <span className="text-xs text-gray-400">
+              {outlookEvents.length} evento{outlookEvents.length !== 1 ? 's' : ''} de Outlook
+            </span>
+          )}
         </div>
       </Card>
 
       {/* Calendar */}
       <Card className="bg-white border-gray-200 overflow-hidden">
-        {/* Calendar Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8">
@@ -424,7 +471,6 @@ export default function CalendarioPage() {
           </Button>
         </div>
 
-        {/* Calendar Grid */}
         <div className="p-2 lg:p-4">
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS.map((day) => (
@@ -451,12 +497,14 @@ export default function CalendarioPage() {
                     isCurrentDay && 'bg-[#8B4513]/5 border-[#8B4513]'
                   )}
                   onClick={() => {
-                    setSelectedDate(date);
-                    setNewEvent(prev => ({
-                      ...prev,
-                      date: date.toISOString().split('T')[0]
-                    }));
-                    openModal('create-event');
+                    if (userIsAdmin) {
+                      setSelectedDate(date);
+                      setNewEvent(prev => ({
+                        ...prev,
+                        date: date.toISOString().split('T')[0]
+                      }));
+                      openModal('create-event');
+                    }
                   }}
                 >
                   <div className={cn(
@@ -471,7 +519,7 @@ export default function CalendarioPage() {
                         key={event.id}
                         className={cn(
                           'text-[10px] lg:text-xs px-1 py-0.5 rounded truncate',
-                          event.isPersonal
+                          event.source === 'outlook'
                             ? 'bg-[#a0522d]/10 text-[#a0522d]'
                             : 'bg-[#8B4513]/10 text-[#8B4513]'
                         )}
@@ -506,7 +554,7 @@ export default function CalendarioPage() {
                 key={event.id}
                 className={cn(
                   'p-3 rounded-lg border-l-4',
-                  event.isPersonal
+                  event.source === 'outlook'
                     ? 'bg-[#a0522d]/5 border-[#a0522d]'
                     : 'bg-[#8B4513]/5 border-[#8B4513]'
                 )}
@@ -515,11 +563,11 @@ export default function CalendarioPage() {
                   <p className="font-medium text-gray-900">{event.title}</p>
                   <span className={cn(
                     'text-[10px] px-1.5 py-0.5 rounded-full',
-                    event.isPersonal
+                    event.source === 'outlook'
                       ? 'bg-[#a0522d]/10 text-[#a0522d]'
                       : 'bg-[#8B4513]/10 text-[#8B4513]'
                   )}>
-                    {event.isPersonal ? 'Personal' : 'General'}
+                    {event.source === 'outlook' ? 'Outlook' : 'General'}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
@@ -543,44 +591,9 @@ export default function CalendarioPage() {
         </div>
       </Card>
 
-      {/* Create Event Modal */}
-      <Modal id="create-event" title="Nuevo Evento" size="md">
+      {/* Create Event Modal (General only — admins) */}
+      <Modal id="create-event" title="Nuevo Evento (Agenda General)" size="md">
         <form onSubmit={handleCreateEvent} className="space-y-4">
-          {/* Event type selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de evento</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEventType('personal')}
-                className={cn(
-                  'flex-1 px-3 py-2 text-sm rounded-lg border transition-colors',
-                  eventType === 'personal'
-                    ? 'border-[#a0522d] bg-[#a0522d]/5 text-[#a0522d] font-medium'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                )}
-              >
-                <span className="inline-block w-2 h-2 bg-[#a0522d] rounded-full mr-1.5"></span>
-                Personal
-              </button>
-              {userIsAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setEventType('general')}
-                  className={cn(
-                    'flex-1 px-3 py-2 text-sm rounded-lg border transition-colors',
-                    eventType === 'general'
-                      ? 'border-[#8B4513] bg-[#8B4513]/5 text-[#8B4513] font-medium'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  )}
-                >
-                  <span className="inline-block w-2 h-2 bg-[#8B4513] rounded-full mr-1.5"></span>
-                  General (equipo)
-                </button>
-              )}
-            </div>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
             <Input
@@ -645,9 +658,7 @@ export default function CalendarioPage() {
           </div>
 
           <p className="text-xs text-gray-500">
-            {eventType === 'general'
-              ? 'Este evento será visible para todo el equipo.'
-              : 'Este evento solo será visible para ti.'}
+            Este evento será visible para todo el equipo en la agenda general.
           </p>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
