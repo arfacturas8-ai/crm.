@@ -73,7 +73,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -82,13 +82,13 @@ export default function LoginPage() {
             alt="HabitaCR"
             className="w-24 h-24 object-contain mx-auto mb-4 rounded-2xl shadow-lg"
           />
-          <h1 className="text-3xl font-bold text-black dark:text-white">HabitaCR</h1>
+          <h1 className="text-3xl font-bold text-black">HabitaCR</h1>
           <p className="text-[#8B4513] mt-1 font-medium">CRM Inmobiliario</p>
         </div>
 
         {/* Login card */}
-        <div className="bg-white dark:bg-[#111] rounded-2xl shadow-xl border border-[#e0ccb0] dark:border-[#3D2314] p-8">
-          <h2 className="text-xl font-semibold text-center mb-6 text-black dark:text-white">
+        <div className="bg-white rounded-2xl shadow-xl border border-[#e0ccb0] p-8">
+          <h2 className="text-xl font-semibold text-center mb-6 text-black">
             Iniciar sesión
           </h2>
 
@@ -119,7 +119,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="bg-[#f0e6d8] dark:bg-[#3D2314] text-[#5c2d0d] dark:text-white text-sm p-3 rounded-lg border border-[#cca87a]">
+              <div className="bg-[#f0e6d8] text-[#5c2d0d] text-sm p-3 rounded-lg border border-[#cca87a]">
                 {error}
               </div>
             )}

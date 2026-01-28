@@ -29,28 +29,6 @@
     --radius: 0.5rem;
   }
 
-  .dark {
-    /* Blanco, Negro, Café - Dark Mode */
-    --background: 0 0% 5%;             /* Negro casi puro */
-    --foreground: 0 0% 98%;            /* Blanco */
-    --card: 0 0% 8%;                   /* Negro suave */
-    --card-foreground: 0 0% 98%;       /* Blanco */
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 25 60% 45%;             /* Café más claro para dark mode */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 15%;             /* Gris oscuro */
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
-    --accent: 25 40% 20%;              /* Café oscuro */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 0% 30%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 25 60% 45%;
-  }
 
   * {
     @apply border-border;
@@ -197,16 +175,16 @@
 
   /* Kanban board */
   .kanban-column {
-    @apply flex flex-col min-h-[500px] bg-gray-50 dark:bg-gray-900 rounded-lg p-4;
+    @apply flex flex-col min-h-[500px] bg-gray-50 rounded-lg p-4;
   }
 
   .kanban-card {
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4 mb-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md;
+    @apply bg-white rounded-lg shadow-sm border p-4 mb-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md;
   }
 
   /* Sidebar styles */
   .sidebar {
-    @apply flex flex-col h-screen bg-white dark:bg-gray-900 border-r transition-all duration-300;
+    @apply flex flex-col h-screen bg-white border-r border-gray-200 transition-all duration-300;
   }
 
   .sidebar-collapsed {
@@ -218,7 +196,7 @@
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors;
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 transition-colors;
   }
 
   .sidebar-link-active {
@@ -263,7 +241,7 @@
 
   /* Gradient text */
   .text-gradient {
-    @apply bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-[#a0522d] bg-clip-text text-transparent;
   }
 
   /* Animation */

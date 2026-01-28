@@ -161,14 +161,14 @@ export default function PropietarioPage() {
           className={cn(
             'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
             activeTab === 'disponible'
-              ? 'text-green-600 border-green-600'
+              ? 'text-[#8B4513] border-[#8B4513]'
               : 'text-gray-500 border-transparent hover:text-gray-700'
           )}
         >
           <span className="flex items-center gap-2">
             <CheckCircle size={16} />
             Disponible
-            <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
+            <span className="px-2 py-0.5 text-xs bg-[#8B4513]/10 text-[#8B4513] rounded-full">
               {disponibleCount}
             </span>
           </span>
@@ -242,7 +242,7 @@ export default function PropietarioPage() {
                 <div className={cn(
                   'absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded',
                   activeTab === 'disponible'
-                    ? 'bg-green-500 text-white'
+                    ? 'bg-[#8B4513] text-white'
                     : 'bg-gray-500 text-white'
                 )}>
                   {property.propertyStatus || (activeTab === 'disponible' ? 'Disponible' : 'No disponible')}
@@ -368,7 +368,7 @@ export default function PropietarioPage() {
               <span className={cn(
                 'px-2 py-1 text-xs font-medium rounded',
                 selectedProperty.status === 'publish'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'bg-[#8B4513]/10 text-[#8B4513]'
                   : 'bg-gray-100 text-gray-600'
               )}>
                 {selectedProperty.propertyStatus || selectedProperty.status}

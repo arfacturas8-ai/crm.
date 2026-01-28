@@ -244,10 +244,10 @@ export default function CalendarioPage() {
               id="show-personal"
               checked={showPersonal}
               onChange={(e) => setShowPersonal(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513]"
             />
             <label htmlFor="show-personal" className="text-sm text-gray-700 flex items-center gap-1">
-              <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+              <span className="w-3 h-3 bg-[#a0522d] rounded-full"></span>
               Mi Agenda Personal
             </label>
           </div>
@@ -324,7 +324,7 @@ export default function CalendarioPage() {
                         className={cn(
                           'text-[10px] lg:text-xs px-1 py-0.5 rounded truncate',
                           event.isPersonal
-                            ? 'bg-blue-100 text-blue-700'
+                            ? 'bg-[#a0522d]/10 text-[#a0522d]'
                             : 'bg-[#8B4513]/10 text-[#8B4513]'
                         )}
                         onClick={(e) => {
@@ -362,7 +362,7 @@ export default function CalendarioPage() {
                 className={cn(
                   'p-3 rounded-lg border-l-4',
                   event.isPersonal
-                    ? 'bg-blue-50 border-blue-500'
+                    ? 'bg-[#a0522d]/5 border-[#a0522d]'
                     : 'bg-[#8B4513]/5 border-[#8B4513]'
                 )}
               >
@@ -460,7 +460,7 @@ export default function CalendarioPage() {
               id="is-personal"
               checked={newEvent.isPersonal}
               onChange={(e) => setNewEvent(prev => ({ ...prev, isPersonal: e.target.checked }))}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513]"
             />
             <label htmlFor="is-personal" className="text-sm text-gray-700">
               Evento personal (solo visible para mí)

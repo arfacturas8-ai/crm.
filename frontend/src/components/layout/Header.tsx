@@ -38,10 +38,10 @@ export function Header() {
   const quickAction = getQuickAction();
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-black border-b border-[#e0ccb0] dark:border-[#3D2314] flex items-center justify-between px-4 md:px-6">
+    <header className="sticky top-0 z-30 h-16 bg-white border-b border-[#e0ccb0] flex items-center justify-between px-4 md:px-6">
       {/* Page title */}
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold text-black dark:text-white hidden md:block">{title}</h1>
+        <h1 className="text-xl font-semibold text-black hidden md:block">{title}</h1>
       </div>
 
       {/* Search & Actions */}

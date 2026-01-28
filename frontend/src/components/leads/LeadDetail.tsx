@@ -276,9 +276,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-black">
+    <div className="h-full flex flex-col bg-white">
       {/* Header with client stats */}
-      <div className="border-b border-[#e0ccb0] dark:border-[#3D2314]">
+      <div className="border-b border-[#e0ccb0]">
         <div className="flex items-start justify-between p-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-[#8B4513] rounded-full flex items-center justify-center flex-shrink-0">
@@ -287,7 +287,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               </span>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-black dark:text-white">{fullLead.name}</h2>
+              <h2 className="text-xl font-semibold text-black">{fullLead.name}</h2>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={getLeadStatusVariant(fullLead.status)}>
                   {fullLead.status === 'new' ? 'Nuevo'
@@ -304,26 +304,26 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           </div>
           {onClose && (
             <button onClick={onClose} className="p-2 hover:bg-[#f0e6d8] rounded-lg transition-colors">
-              <X size={20} className="text-black dark:text-white" />
+              <X size={20} className="text-black" />
             </button>
           )}
         </div>
 
         {/* Stats Bar */}
         <div className="grid grid-cols-4 gap-4 px-6 pb-4">
-          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+          <div className="bg-[#faf5f0] rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-[#8B4513]">{clientStats.totalDeals}</div>
             <div className="text-xs text-gray-500">Deals</div>
           </div>
-          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+          <div className="bg-[#faf5f0] rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-[#8B4513]">{formatCurrency(clientStats.totalValue)}</div>
             <div className="text-xs text-gray-500">Valor Total</div>
           </div>
-          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+          <div className="bg-[#faf5f0] rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-green-600">{clientStats.wonDeals}</div>
             <div className="text-xs text-gray-500">Ganados</div>
           </div>
-          <div className="bg-[#faf5f0] dark:bg-[#111] rounded-lg p-3 text-center">
+          <div className="bg-[#faf5f0] rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-green-600">{formatCurrency(clientStats.wonValue)}</div>
             <div className="text-xs text-gray-500">Valor Ganado</div>
           </div>
@@ -331,7 +331,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex items-center gap-2 p-4 border-b border-[#e0ccb0] dark:border-[#3D2314] bg-[#faf5f0] dark:bg-[#111]">
+      <div className="flex items-center gap-2 p-4 border-b border-[#e0ccb0] bg-[#faf5f0]">
         {fullLead.mobile && (
           <>
             <a href={getWhatsAppLink(fullLead.mobile)} target="_blank" rel="noopener noreferrer">
@@ -363,7 +363,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#e0ccb0] dark:border-[#3D2314] overflow-x-auto">
+      <div className="flex border-b border-[#e0ccb0] overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -402,18 +402,18 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                   {fullLead.mobile && (
                     <div className="flex items-center gap-3">
                       <Phone size={18} className="text-[#8B4513]" />
-                      <span className="text-black dark:text-white">{formatPhoneDisplay(fullLead.mobile)}</span>
+                      <span className="text-black">{formatPhoneDisplay(fullLead.mobile)}</span>
                     </div>
                   )}
                   {fullLead.email && (
                     <div className="flex items-center gap-3">
                       <Mail size={18} className="text-[#8B4513]" />
-                      <span className="text-black dark:text-white">{fullLead.email}</span>
+                      <span className="text-black">{fullLead.email}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-3">
                     <Calendar size={18} className="text-[#8B4513]" />
-                    <span className="text-black dark:text-white">{formatDate(fullLead.createdAt)}</span>
+                    <span className="text-black">{formatDate(fullLead.createdAt)}</span>
                   </div>
                 </div>
               </Card>
@@ -459,7 +459,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                 <h3 className="font-semibold text-sm text-[#8B4513] mb-3 uppercase tracking-wide">
                   Mensaje del Lead
                 </h3>
-                <p className="text-black dark:text-white whitespace-pre-wrap">{fullLead.message}</p>
+                <p className="text-black whitespace-pre-wrap">{fullLead.message}</p>
               </Card>
             )}
 
@@ -471,13 +471,13 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               {leadDeals.length > 0 ? (
                 <div className="space-y-3">
                   {leadDeals.map((deal: any) => (
-                    <div key={deal.id} className="flex items-center justify-between p-3 bg-[#faf5f0] dark:bg-[#111] rounded-lg">
+                    <div key={deal.id} className="flex items-center justify-between p-3 bg-[#faf5f0] rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-[#8B4513]/10 rounded-lg flex items-center justify-center">
                           <Building2 size={18} className="text-[#8B4513]" />
                         </div>
                         <div>
-                          <p className="font-medium text-black dark:text-white">{deal.title}</p>
+                          <p className="font-medium text-black">{deal.title}</p>
                           {deal.value && (
                             <p className="text-sm text-[#8B4513] font-semibold">{formatCurrency(deal.value)}</p>
                           )}
@@ -687,8 +687,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               {notes.length > 0 ? (
                 <div className="space-y-3">
                   {notes.map((note: any, idx: number) => (
-                    <div key={note.id || idx} className="p-4 bg-[#faf5f0] dark:bg-[#111] rounded-lg">
-                      <p className="text-black dark:text-white whitespace-pre-wrap">{note.content}</p>
+                    <div key={note.id || idx} className="p-4 bg-[#faf5f0] rounded-lg">
+                      <p className="text-black whitespace-pre-wrap">{note.content}</p>
                       <p className="text-sm text-gray-500 mt-2">
                         {note.userName} - {formatRelativeTime(note.createdAt)}
                       </p>

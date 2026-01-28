@@ -349,7 +349,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-black">
+    <div className="h-full flex flex-col bg-white">
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-[#e0ccb0]">
         <div className="flex items-center gap-4">
@@ -357,7 +357,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
             {fullDeal.title?.charAt(0).toUpperCase() || 'D'}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-black dark:text-white">{fullDeal.title}</h2>
+            <h2 className="text-xl font-bold text-black">{fullDeal.title}</h2>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={getStageVariant(fullDeal.stage)}>
                 {STAGE_LABELS[fullDeal.stage] || fullDeal.stage}
@@ -453,7 +453,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase mb-1">Fecha de Creación</p>
-                  <p className="text-black dark:text-white flex items-center gap-2">
+                  <p className="text-black flex items-center gap-2">
                     <Calendar size={14} className="text-gray-400" />
                     {formatDate(fullDeal.createdAt)}
                   </p>
@@ -461,7 +461,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                 {linkedProperty && (
                   <div>
                     <p className="text-xs text-gray-500 uppercase mb-1">Propiedad</p>
-                    <p className="text-black dark:text-white flex items-center gap-2">
+                    <p className="text-black flex items-center gap-2">
                       <Building size={14} className="text-gray-400" />
                       {linkedProperty.title}
                     </p>
@@ -482,7 +482,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                       <User size={18} className="text-[#8B4513]" />
                     </div>
                     <div>
-                      <p className="font-medium text-black dark:text-white">{linkedLead.name}</p>
+                      <p className="font-medium text-black">{linkedLead.name}</p>
                       <p className="text-sm text-gray-500">{linkedLead.email}</p>
                     </div>
                   </div>
@@ -516,7 +516,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                     </div>
                   )}
                   <div className="flex-1">
-                    <h4 className="text-xl font-bold text-black dark:text-white mb-3">{linkedProperty.title}</h4>
+                    <h4 className="text-xl font-bold text-black mb-3">{linkedProperty.title}</h4>
                     {linkedProperty.propertyAddress && (
                       <p className="text-gray-600 flex items-center gap-2 mb-2">
                         <MapPin size={16} className="text-[#8B4513]" />
@@ -574,7 +574,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               <Card className="p-8 border-[#e0ccb0]">
                 <div className="text-center mb-6">
                   <Home size={56} className="mx-auto text-[#cca87a] mb-4" />
-                  <h3 className="font-semibold text-lg text-black dark:text-white mb-2">
+                  <h3 className="font-semibold text-lg text-black mb-2">
                     Sin propiedad vinculada
                   </h3>
                   <p className="text-gray-500">
@@ -623,7 +623,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               </h3>
               {notesText ? (
                 <div className="p-4 bg-[#faf5f0] rounded-lg">
-                  <p className="text-black dark:text-white whitespace-pre-wrap">{notesText}</p>
+                  <p className="text-black whitespace-pre-wrap">{notesText}</p>
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -639,9 +639,9 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       {/* Edit Modal */}
       {isEditing && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111] rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
             <div className="flex items-center justify-between p-5 border-b border-[#e0ccb0]">
-              <h3 className="text-lg font-bold text-black dark:text-white">Editar Deal</h3>
+              <h3 className="text-lg font-bold text-black">Editar Deal</h3>
               <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-[#f0e6d8] rounded-lg">
                 <X size={20} className="text-gray-500" />
               </button>
