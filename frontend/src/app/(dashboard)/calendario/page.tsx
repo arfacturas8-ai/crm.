@@ -8,7 +8,6 @@ import {
   Plus,
   Clock,
   MapPin,
-  Users,
   RefreshCw,
   Link,
   Copy,
@@ -30,7 +29,6 @@ interface CalendarEvent {
   start: Date;
   end: Date;
   location?: string;
-  isPersonal: boolean;
 }
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -44,12 +42,9 @@ export default function CalendarioPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-  const [showPersonal, setShowPersonal] = useState(true);
-  const [showGeneral, setShowGeneral] = useState(true);
 
   const [showSubscription, setShowSubscription] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedGeneral, setCopiedGeneral] = useState(false);
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -58,13 +53,12 @@ export default function CalendarioPage() {
     startTime: '09:00',
     endTime: '10:00',
     location: '',
-    isPersonal: false,
   });
 
   const { openModal, closeModal, addNotification } = useUIStore();
   const { user } = useAuthStore();
 
-  // Fetch events from CalDAV
+  // Fetch events from CalDAV (general calendar)
   const fetchEvents = async () => {
     setLoading(true);
     try {
@@ -96,27 +90,26 @@ export default function CalendarioPage() {
     fetchEvents();
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
-  // Calendar subscription URL
-  const feedUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/calendar/feed?token=${process.env.NEXT_PUBLIC_CALENDAR_FEED_TOKEN || 'hbtcr-cal-f33d-s3cr3t-2026x'}`
+  // General calendar subscription URL
+  const generalFeedUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/calendar/feed?token=${process.env.NEXT_PUBLIC_CALENDAR_FEED_TOKEN || ''}`
     : '';
 
-  const copyFeedUrl = async () => {
+  const copyUrl = async (url: string, setter: (v: boolean) => void) => {
     try {
-      await navigator.clipboard.writeText(feedUrl);
-      setCopied(true);
+      await navigator.clipboard.writeText(url);
+      setter(true);
       addNotification({ type: 'success', title: 'Copiado', message: 'URL del calendario copiada' });
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setter(false), 2000);
     } catch {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
-      textArea.value = feedUrl;
+      textArea.value = url;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setter(true);
+      setTimeout(() => setter(false), 2000);
     }
   };
 
@@ -144,12 +137,10 @@ export default function CalendarioPage() {
 
     const days: (Date | null)[] = [];
 
-    // Add empty slots for days before the first day of the month
     for (let i = 0; i < startingDay; i++) {
       days.push(null);
     }
 
-    // Add all days of the month
     for (let i = 1; i <= totalDays; i++) {
       days.push(new Date(year, month, i));
     }
@@ -164,8 +155,7 @@ export default function CalendarioPage() {
       return (
         eventDate.getDate() === date.getDate() &&
         eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear() &&
-        ((event.isPersonal && showPersonal) || (!event.isPersonal && showGeneral))
+        eventDate.getFullYear() === date.getFullYear()
       );
     });
   };
@@ -180,7 +170,7 @@ export default function CalendarioPage() {
     );
   };
 
-  // Handle create event
+  // Handle create event (always general — goes to CalDAV)
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -199,12 +189,12 @@ export default function CalendarioPage() {
           start: `${newEvent.date}T${newEvent.startTime}:00`,
           end: `${newEvent.date}T${newEvent.endTime}:00`,
           location: newEvent.location,
-          isPersonal: newEvent.isPersonal,
+          isPersonal: false,
         }),
       });
 
       if (response.ok) {
-        addNotification({ type: 'success', title: 'Evento creado', message: 'El evento se ha agregado al calendario' });
+        addNotification({ type: 'success', title: 'Evento creado', message: 'El evento se ha agregado a la agenda general' });
         closeModal();
         fetchEvents();
         setNewEvent({
@@ -214,7 +204,6 @@ export default function CalendarioPage() {
           startTime: '09:00',
           endTime: '10:00',
           location: '',
-          isPersonal: false,
         });
       } else {
         throw new Error('Error creating event');
@@ -232,7 +221,7 @@ export default function CalendarioPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Calendario</h1>
-          <p className="text-sm text-gray-500">Agenda general y personal</p>
+          <p className="text-sm text-gray-500">Agenda general del equipo</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -272,37 +261,50 @@ export default function CalendarioPage() {
             </h3>
             <button
               onClick={() => setShowSubscription(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
             >
               &times;
             </button>
           </div>
 
-          <p className="text-sm text-gray-600 mb-4">
-            Use esta URL para suscribirse al calendario de HabitaCR desde cualquier aplicación de calendario.
-            Los eventos se sincronizarán automáticamente.
-          </p>
+          {/* General Calendar Feed */}
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-3 h-3 bg-[#8B4513] rounded-full"></span>
+              <h4 className="text-sm font-medium text-gray-900">Agenda General (HabitaCR)</h4>
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+              Suscríbase a esta URL para recibir todos los eventos del equipo en su calendario personal.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={generalFeedUrl}
+                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono truncate"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyUrl(generalFeedUrl, setCopiedGeneral)}
+                className="border-gray-200 shrink-0"
+              >
+                {copiedGeneral ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                <span className="ml-1">{copiedGeneral ? 'Copiado' : 'Copiar'}</span>
+              </Button>
+            </div>
+          </div>
 
-          {/* Feed URL */}
-          <div className="flex items-center gap-2 mb-4">
-            <input
-              type="text"
-              readOnly
-              value={feedUrl}
-              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono truncate"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={copyFeedUrl}
-              className="border-gray-200 shrink-0"
-            >
-              {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-              <span className="ml-1">{copied ? 'Copiado' : 'Copiar'}</span>
-            </Button>
+          {/* Personal calendar note */}
+          <div className="p-3 bg-[#8B4513]/5 rounded-lg border border-[#8B4513]/10 mb-5">
+            <p className="text-sm text-gray-700">
+              <strong>Agenda Personal:</strong> Sus eventos personales los maneja directamente desde Outlook
+              (u otra app de calendario). Al suscribirse a la URL de arriba, verá la agenda general junto a sus eventos personales en un solo lugar.
+            </p>
           </div>
 
           {/* Instructions */}
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Instrucciones por aplicación:</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-gray-50 rounded-lg">
               <h4 className="text-sm font-medium text-gray-900 mb-2">Microsoft Outlook</h4>
@@ -332,44 +334,12 @@ export default function CalendarioPage() {
                 <li>Archivo &gt; Nueva suscripción</li>
                 <li>Pegue la URL copiada</li>
                 <li>Click &quot;Suscribirse&quot;</li>
-                <li>Configure la frecuencia de actualización</li>
+                <li>Configure frecuencia de actualización</li>
               </ol>
             </div>
           </div>
         </Card>
       )}
-
-      {/* Calendar filters */}
-      <Card className="p-3 lg:p-4 bg-white border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="show-general"
-              checked={showGeneral}
-              onChange={(e) => setShowGeneral(e.target.checked)}
-              className="rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513]"
-            />
-            <label htmlFor="show-general" className="text-sm text-gray-700 flex items-center gap-1">
-              <span className="w-3 h-3 bg-[#8B4513] rounded-full"></span>
-              Agenda General
-            </label>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="show-personal"
-              checked={showPersonal}
-              onChange={(e) => setShowPersonal(e.target.checked)}
-              className="rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513]"
-            />
-            <label htmlFor="show-personal" className="text-sm text-gray-700 flex items-center gap-1">
-              <span className="w-3 h-3 bg-[#a0522d] rounded-full"></span>
-              Mi Agenda Personal
-            </label>
-          </div>
-        </div>
-      </Card>
 
       {/* Calendar */}
       <Card className="bg-white border-gray-200 overflow-hidden">
@@ -438,15 +408,9 @@ export default function CalendarioPage() {
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className={cn(
-                          'text-[10px] lg:text-xs px-1 py-0.5 rounded truncate',
-                          event.isPersonal
-                            ? 'bg-[#a0522d]/10 text-[#a0522d]'
-                            : 'bg-[#8B4513]/10 text-[#8B4513]'
-                        )}
+                        className="text-[10px] lg:text-xs px-1 py-0.5 rounded truncate bg-[#8B4513]/10 text-[#8B4513]"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // TODO: Open event details
                         }}
                       >
                         {event.title}
@@ -476,12 +440,7 @@ export default function CalendarioPage() {
             getEventsForDay(new Date()).map((event) => (
               <div
                 key={event.id}
-                className={cn(
-                  'p-3 rounded-lg border-l-4',
-                  event.isPersonal
-                    ? 'bg-[#a0522d]/5 border-[#a0522d]'
-                    : 'bg-[#8B4513]/5 border-[#8B4513]'
-                )}
+                className="p-3 rounded-lg border-l-4 bg-[#8B4513]/5 border-[#8B4513]"
               >
                 <p className="font-medium text-gray-900">{event.title}</p>
                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
@@ -506,7 +465,7 @@ export default function CalendarioPage() {
       </Card>
 
       {/* Create Event Modal */}
-      <Modal id="create-event" title="Nuevo Evento" size="md">
+      <Modal id="create-event" title="Nuevo Evento (Agenda General)" size="md">
         <form onSubmit={handleCreateEvent} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
@@ -571,18 +530,10 @@ export default function CalendarioPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is-personal"
-              checked={newEvent.isPersonal}
-              onChange={(e) => setNewEvent(prev => ({ ...prev, isPersonal: e.target.checked }))}
-              className="rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513]"
-            />
-            <label htmlFor="is-personal" className="text-sm text-gray-700">
-              Evento personal (solo visible para mí)
-            </label>
-          </div>
+          <p className="text-xs text-gray-500">
+            Este evento se agregará a la agenda general y será visible para todo el equipo.
+            Para eventos personales, use su calendario de Outlook directamente.
+          </p>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             <Button type="submit">
