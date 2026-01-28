@@ -70,7 +70,7 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-whatsapp/10 rounded-full flex items-center justify-center">
                 <MessageSquare size={20} className="text-whatsapp" />
@@ -159,9 +159,9 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                 <Database size={20} className="text-purple-500" />
               </div>
               <div>

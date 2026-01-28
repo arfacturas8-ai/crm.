@@ -66,7 +66,7 @@ export function Modal({ id, title, children, size = 'md', showCloseButton = true
       <div
         ref={modalRef}
         className={cn(
-          'relative bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full mx-4 animate-slide-in max-h-[90vh] overflow-hidden flex flex-col',
+          'relative bg-white rounded-lg shadow-xl w-full mx-4 animate-slide-in max-h-[90vh] overflow-hidden flex flex-col',
           sizeClasses[size]
         )}
       >
@@ -102,7 +102,7 @@ interface ModalFooterProps {
 
 export function ModalFooter({ children, className }: ModalFooterProps) {
   return (
-    <div className={cn('flex items-center justify-end gap-3 p-4 border-t bg-gray-50 dark:bg-gray-800', className)}>
+    <div className={cn('flex items-center justify-end gap-3 p-4 border-t bg-gray-50', className)}>
       {children}
     </div>
   );
