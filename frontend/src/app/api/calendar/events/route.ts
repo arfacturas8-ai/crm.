@@ -36,6 +36,8 @@ function parseICalendar(icalData: string): any[] {
         currentEvent.end = parseICalDate(value);
       } else if (key === 'X-PERSONAL') {
         currentEvent.isPersonal = value === 'TRUE';
+      } else if (key === 'X-AGENT-ID') {
+        currentEvent.agentId = value;
       }
     }
   }
@@ -63,11 +65,11 @@ function formatICalDate(dateStr: string): string {
   return dateStr.replace(/[-:]/g, '').replace('.000', '').replace('Z', '');
 }
 
-// GET/POST - Fetch events
+// POST - Fetch events (supports agentId filter for personal events)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { year, month } = body;
+    const { year, month, agentId } = body;
 
     // Calculate date range for the month
     const startDate = new Date(year, month - 1, 1);
@@ -103,7 +105,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      // If CalDAV fails, return empty events (demo mode)
       console.log('CalDAV not available, returning demo events');
       return NextResponse.json({
         events: generateDemoEvents(year, month),
@@ -122,10 +123,15 @@ export async function POST(request: NextRequest) {
       allEvents.push(...events);
     }
 
-    return NextResponse.json({ events: allEvents });
+    // If agentId is provided, filter personal events to only show that agent's
+    // General events (isPersonal=false) are always visible
+    const filteredEvents = agentId
+      ? allEvents.filter(e => !e.isPersonal || e.agentId === String(agentId))
+      : allEvents;
+
+    return NextResponse.json({ events: filteredEvents });
   } catch (error) {
     console.error('Error fetching calendar events:', error);
-    // Return demo events on error
     const now = new Date();
     return NextResponse.json({
       events: generateDemoEvents(now.getFullYear(), now.getMonth() + 1),
@@ -137,25 +143,32 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, start, end, location, isPersonal } = body;
+    const { title, description, start, end, location, isPersonal, agentId } = body;
 
     const eventUid = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@habitacr.com`;
     const startFormatted = formatICalDate(new Date(start).toISOString());
     const endFormatted = formatICalDate(new Date(end).toISOString());
 
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//HabitaCR CRM//ES
-BEGIN:VEVENT
-UID:${eventUid}
-DTSTART:${startFormatted}
-DTEND:${endFormatted}
-SUMMARY:${title}
-${description ? `DESCRIPTION:${description}` : ''}
-${location ? `LOCATION:${location}` : ''}
-X-PERSONAL:${isPersonal ? 'TRUE' : 'FALSE'}
-END:VEVENT
-END:VCALENDAR`;
+    // Build optional lines
+    const optionalLines: string[] = [];
+    if (description) optionalLines.push(`DESCRIPTION:${description}`);
+    if (location) optionalLines.push(`LOCATION:${location}`);
+    optionalLines.push(`X-PERSONAL:${isPersonal ? 'TRUE' : 'FALSE'}`);
+    if (isPersonal && agentId) optionalLines.push(`X-AGENT-ID:${agentId}`);
+
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//HabitaCR CRM//ES',
+      'BEGIN:VEVENT',
+      `UID:${eventUid}`,
+      `DTSTART:${startFormatted}`,
+      `DTEND:${endFormatted}`,
+      `SUMMARY:${title}`,
+      ...optionalLines,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
 
     const response = await fetch(`${CALDAV_URL}${eventUid}.ics`, {
       method: 'PUT',
@@ -170,7 +183,6 @@ END:VCALENDAR`;
       return NextResponse.json({ success: true, eventId: eventUid });
     }
 
-    // Fallback: store locally if CalDAV fails
     console.log('CalDAV create failed, event would be stored locally');
     return NextResponse.json({ success: true, eventId: eventUid, local: true });
   } catch (error) {
@@ -208,7 +220,6 @@ function generateDemoEvents(year: number, month: number): any[] {
   const events = [];
   const today = new Date();
 
-  // Sample events for demo
   events.push({
     id: 'demo-1',
     title: 'Reunión de equipo',
@@ -236,6 +247,7 @@ function generateDemoEvents(year: number, month: number): any[] {
     start: new Date(year, month - 1, today.getDate(), 9, 0).toISOString(),
     end: new Date(year, month - 1, today.getDate(), 9, 30).toISOString(),
     isPersonal: true,
+    agentId: 'demo-agent',
   });
 
   return events;
