@@ -10,6 +10,10 @@ import {
   MapPin,
   Users,
   RefreshCw,
+  Link,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -43,6 +47,9 @@ export default function CalendarioPage() {
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [showPersonal, setShowPersonal] = useState(true);
   const [showGeneral, setShowGeneral] = useState(true);
+
+  const [showSubscription, setShowSubscription] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -88,6 +95,30 @@ export default function CalendarioPage() {
   useEffect(() => {
     fetchEvents();
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
+
+  // Calendar subscription URL
+  const feedUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/calendar/feed?token=${process.env.NEXT_PUBLIC_CALENDAR_FEED_TOKEN || 'hbtcr-cal-f33d-s3cr3t-2026x'}`
+    : '';
+
+  const copyFeedUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(feedUrl);
+      setCopied(true);
+      addNotification({ type: 'success', title: 'Copiado', message: 'URL del calendario copiada' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = feedUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   // Calendar navigation
   const goToPreviousMonth = () => {
@@ -207,6 +238,15 @@ export default function CalendarioPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowSubscription(!showSubscription)}
+            className="border-gray-200 text-xs lg:text-sm"
+          >
+            <Link size={14} className="mr-1" />
+            <span className="hidden sm:inline">Conectar Outlook</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchEvents}
             className="border-gray-200"
           >
@@ -221,6 +261,83 @@ export default function CalendarioPage() {
           </Button>
         </div>
       </div>
+
+      {/* Outlook / Calendar Subscription Panel */}
+      {showSubscription && (
+        <Card className="p-4 lg:p-5 bg-white border-gray-200">
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <ExternalLink size={16} />
+              Conectar con Outlook y Otros Calendarios
+            </h3>
+            <button
+              onClick={() => setShowSubscription(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              &times;
+            </button>
+          </div>
+
+          <p className="text-sm text-gray-600 mb-4">
+            Use esta URL para suscribirse al calendario de HabitaCR desde cualquier aplicación de calendario.
+            Los eventos se sincronizarán automáticamente.
+          </p>
+
+          {/* Feed URL */}
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="text"
+              readOnly
+              value={feedUrl}
+              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono truncate"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyFeedUrl}
+              className="border-gray-200 shrink-0"
+            >
+              {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+              <span className="ml-1">{copied ? 'Copiado' : 'Copiar'}</span>
+            </Button>
+          </div>
+
+          {/* Instructions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Microsoft Outlook</h4>
+              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                <li>Abra Outlook</li>
+                <li>Vaya a Calendario</li>
+                <li>Click &quot;Agregar calendario&quot;</li>
+                <li>Seleccione &quot;Desde Internet&quot;</li>
+                <li>Pegue la URL copiada</li>
+                <li>Click &quot;Aceptar&quot;</li>
+              </ol>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Google Calendar</h4>
+              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                <li>Abra Google Calendar</li>
+                <li>Click &quot;+&quot; junto a &quot;Otros calendarios&quot;</li>
+                <li>Seleccione &quot;Desde URL&quot;</li>
+                <li>Pegue la URL copiada</li>
+                <li>Click &quot;Agregar calendario&quot;</li>
+              </ol>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Apple Calendar</h4>
+              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                <li>Abra Calendar en Mac/iPhone</li>
+                <li>Archivo &gt; Nueva suscripción</li>
+                <li>Pegue la URL copiada</li>
+                <li>Click &quot;Suscribirse&quot;</li>
+                <li>Configure la frecuencia de actualización</li>
+              </ol>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Calendar filters */}
       <Card className="p-3 lg:p-4 bg-white border-gray-200">
