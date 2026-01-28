@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Link,
   Check,
+  Copy,
   ExternalLink,
   X,
 } from 'lucide-react';
@@ -56,6 +57,7 @@ export default function CalendarioPage() {
   const [outlookUrl, setOutlookUrl] = useState('');
   const [outlookConnected, setOutlookConnected] = useState(false);
   const [outlookUrlInput, setOutlookUrlInput] = useState('');
+  const [copiedFeed, setCopiedFeed] = useState(false);
 
   // Event creation
   const [eventType, setEventType] = useState<'general' | 'personal'>('personal');
@@ -139,6 +141,28 @@ export default function CalendarioPage() {
       setLoadingOutlook(false);
     }
   }, [outlookUrl]);
+
+  // General feed URL (for subscribing in Outlook)
+  const feedToken = process.env.NEXT_PUBLIC_CALENDAR_FEED_TOKEN || '';
+  const generalFeedUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/calendar/feed?token=${feedToken}&type=general`
+    : '';
+
+  const copyFeedUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(generalFeedUrl);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = generalFeedUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopiedFeed(true);
+    addNotification({ type: 'success', title: 'Copiado', message: 'URL de la agenda general copiada' });
+    setTimeout(() => setCopiedFeed(false), 2000);
+  };
 
   // Fetch both on mount and month change
   useEffect(() => {
@@ -320,13 +344,13 @@ export default function CalendarioPage() {
         </div>
       </div>
 
-      {/* Outlook Setup Panel */}
+      {/* Outlook Sync Panel — two-way setup */}
       {showOutlookSetup && (
         <Card className="p-4 lg:p-5 bg-white border-gray-200">
           <div className="flex items-start justify-between mb-3">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <ExternalLink size={16} />
-              Conectar Calendario de Outlook
+              Sincronizar con Outlook
             </h3>
             <button
               onClick={() => setShowOutlookSetup(false)}
@@ -336,79 +360,123 @@ export default function CalendarioPage() {
             </button>
           </div>
 
-          {outlookConnected ? (
-            <div>
-              <div className="flex items-center gap-2 mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                <Check size={16} className="text-green-600 shrink-0" />
-                <p className="text-sm text-green-800">
-                  Outlook conectado — sus eventos personales se muestran en el calendario.
-                </p>
+          <p className="text-sm text-gray-600 mb-4">
+            Configure la sincronización en dos pasos para que ambos calendarios se mantengan actualizados.
+          </p>
+
+          <div className="space-y-5">
+            {/* STEP 1: Outlook → CRM */}
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-6 h-6 bg-[#a0522d] text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                <h4 className="text-sm font-medium text-gray-900">
+                  Outlook → CRM <span className="text-gray-400 font-normal">(ver su agenda personal aquí)</span>
+                </h4>
+                {outlookConnected && <Check size={14} className="text-green-600 ml-auto" />}
               </div>
-              <div className="flex items-center gap-2 mb-4">
+
+              {outlookConnected ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-3 p-2 bg-green-50 rounded border border-green-200">
+                    <Check size={14} className="text-green-600 shrink-0" />
+                    <p className="text-xs text-green-800">Conectado — sus eventos de Outlook se muestran en el CRM.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={outlookUrl}
+                      className="flex-1 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 font-mono truncate"
+                    />
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="border-gray-200 text-xs">
+                      <RefreshCw size={12} className="mr-1" />
+                      Sincronizar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDisconnectOutlook} className="border-red-200 text-red-600 hover:bg-red-50 text-xs">
+                      Desvincular
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Pegue la URL ICS de su calendario de Outlook para ver esos eventos aquí.
+                  </p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="url"
+                      placeholder="https://outlook.office365.com/owa/calendar/..."
+                      value={outlookUrlInput}
+                      onChange={(e) => setOutlookUrlInput(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8B4513]/20 focus:border-[#8B4513]"
+                    />
+                    <Button size="sm" onClick={handleConnectOutlook}>
+                      Conectar
+                    </Button>
+                  </div>
+                  <details className="text-xs text-gray-500">
+                    <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+                      ¿Cómo obtener la URL de Outlook?
+                    </summary>
+                    <ol className="mt-2 space-y-1 list-decimal list-inside">
+                      <li>Abra <strong>Outlook</strong> (web: outlook.office.com)</li>
+                      <li>Vaya a <strong>Configuración</strong> (engranaje)</li>
+                      <li>Busque <strong>Calendario</strong> &gt; <strong>Calendarios compartidos</strong></li>
+                      <li>En &quot;Publicar un calendario&quot;, seleccione su calendario</li>
+                      <li>Elija permisos y click &quot;Publicar&quot;</li>
+                      <li>Copie el enlace <strong>ICS</strong> y péguelo arriba</li>
+                    </ol>
+                  </details>
+                </div>
+              )}
+            </div>
+
+            {/* STEP 2: CRM → Outlook */}
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-6 h-6 bg-[#8B4513] text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                <h4 className="text-sm font-medium text-gray-900">
+                  CRM → Outlook <span className="text-gray-400 font-normal">(ver agenda general en Outlook)</span>
+                </h4>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">
+                Suscríbase a esta URL en Outlook para que los eventos generales del equipo aparezcan en su Outlook automáticamente.
+              </p>
+              <div className="flex items-center gap-2 mb-3">
                 <input
                   type="text"
                   readOnly
-                  value={outlookUrl}
-                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500 font-mono truncate"
+                  value={generalFeedUrl}
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono truncate"
                 />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  className="border-gray-200"
-                >
-                  <RefreshCw size={14} className="mr-1" />
-                  Sincronizar ahora
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDisconnectOutlook}
-                  className="border-red-200 text-red-600 hover:bg-red-50"
-                >
-                  Desvincular
+                <Button variant="outline" size="sm" onClick={copyFeedUrl} className="border-gray-200 shrink-0">
+                  {copiedFeed ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                  <span className="ml-1 text-xs">{copiedFeed ? 'Copiado' : 'Copiar'}</span>
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-sm text-gray-600 mb-4">
-                Vincule su calendario de Outlook para ver sus eventos personales junto a la agenda general del equipo.
-              </p>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL del calendario de Outlook (ICS)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://outlook.office365.com/owa/calendar/..."
-                    value={outlookUrlInput}
-                    onChange={(e) => setOutlookUrlInput(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8B4513]/20 focus:border-[#8B4513]"
-                  />
-                  <Button size="sm" onClick={handleConnectOutlook}>
-                    Conectar
-                  </Button>
-                </div>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">¿Cómo obtener la URL?</h4>
-                <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-                  <li>Abra <strong>Outlook</strong> (web: outlook.office.com)</li>
-                  <li>Vaya a <strong>Configuración</strong> (engranaje)</li>
-                  <li>Busque <strong>Calendario</strong> &gt; <strong>Calendarios compartidos</strong></li>
-                  <li>En &quot;Publicar un calendario&quot;, seleccione su calendario</li>
-                  <li>Elija permisos y click &quot;Publicar&quot;</li>
-                  <li>Copie el enlace <strong>ICS</strong> y péguelo arriba</li>
+              <details className="text-xs text-gray-500">
+                <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+                  ¿Cómo suscribirse en Outlook?
+                </summary>
+                <ol className="mt-2 space-y-1 list-decimal list-inside">
+                  <li>Copie la URL de arriba</li>
+                  <li>En <strong>Outlook</strong>, vaya a <strong>Calendario</strong></li>
+                  <li>Click <strong>&quot;Agregar calendario&quot;</strong> &gt; <strong>&quot;Desde Internet&quot;</strong></li>
+                  <li>Pegue la URL y click <strong>&quot;Aceptar&quot;</strong></li>
+                  <li>Los eventos generales aparecerán en Outlook automáticamente</li>
                 </ol>
-              </div>
+              </details>
             </div>
-          )}
+          </div>
+
+          {/* Summary */}
+          <div className="mt-4 p-3 bg-[#8B4513]/5 rounded-lg border border-[#8B4513]/10">
+            <p className="text-xs text-gray-700">
+              <strong>Resultado:</strong> Al completar ambos pasos, verá todos los eventos en un solo lugar —
+              tanto en el CRM como en Outlook. Los eventos generales creados por admins se sincronizan a Outlook,
+              y sus eventos personales de Outlook se muestran aquí.
+            </p>
+          </div>
         </Card>
       )}
 
