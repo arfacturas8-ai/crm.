@@ -41,7 +41,6 @@ export const GET_LEADS = gql`
         message
         status
         propertyId
-        agentId
         createdAt
         updatedAt
       }

@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const CALDAV_URL = 'https://habitacr.com/calendar/html/dav.php/calendars/master/habitacr/';
 const CALDAV_USER = 'master';
 const CALDAV_PASS = process.env.CALDAV_PASSWORD || '';
+
+// Local storage for events when CalDAV is unavailable
+const LOCAL_EVENTS_FILE = path.join(process.cwd(), 'data', 'calendar-events.json');
+
+async function getLocalEvents(): Promise<any[]> {
+  try {
+    const data = await fs.readFile(LOCAL_EVENTS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+async function saveLocalEvents(events: any[]): Promise<void> {
+  try {
+    const dir = path.dirname(LOCAL_EVENTS_FILE);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(LOCAL_EVENTS_FILE, JSON.stringify(events, null, 2));
+  } catch (error) {
+    console.error('Error saving local events:', error);
+  }
+}
 
 // Parse iCalendar format to extract events
 function parseICalendar(icalData: string): any[] {
@@ -105,9 +129,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.log('CalDAV not available, returning demo events');
+      console.log('CalDAV not available, returning local events');
+      const localEvents = await getLocalEvents();
+      // Filter events for the requested month
+      const filteredLocalEvents = localEvents.filter(e => {
+        const eventDate = new Date(e.start);
+        return eventDate.getFullYear() === year && eventDate.getMonth() === month - 1;
+      });
       return NextResponse.json({
-        events: generateDemoEvents(year, month),
+        events: filteredLocalEvents.length > 0 ? filteredLocalEvents : generateDemoEvents(year, month),
       });
     }
 
@@ -132,20 +162,54 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ events: filteredEvents });
   } catch (error) {
     console.error('Error fetching calendar events:', error);
+    // Try to return local events on error
     const now = new Date();
+    const fallbackYear = typeof year !== 'undefined' ? year : now.getFullYear();
+    const fallbackMonth = typeof month !== 'undefined' ? month : now.getMonth() + 1;
+    const localEvents = await getLocalEvents();
+    const filteredLocalEvents = localEvents.filter(e => {
+      const eventDate = new Date(e.start);
+      return eventDate.getFullYear() === fallbackYear && eventDate.getMonth() === fallbackMonth - 1;
+    });
     return NextResponse.json({
-      events: generateDemoEvents(now.getFullYear(), now.getMonth() + 1),
+      events: filteredLocalEvents.length > 0 ? filteredLocalEvents : generateDemoEvents(fallbackYear, fallbackMonth),
     });
   }
 }
 
 // PUT - Create event
 export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { title, description, start, end, location, isPersonal, agentId } = body;
+  let body: any = {};
 
-    const eventUid = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@habitacr.com`;
+  try {
+    body = await request.json();
+  } catch (parseError) {
+    console.error('Error parsing request body:', parseError);
+    return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+  }
+
+  const { title, description, start, end, location, isPersonal, agentId } = body;
+  const eventUid = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@habitacr.com`;
+
+  // Helper to save event locally
+  const saveEventLocally = async () => {
+    const localEvent = {
+      id: eventUid,
+      title,
+      description: description || '',
+      start: new Date(start).toISOString(),
+      end: new Date(end).toISOString(),
+      location: location || '',
+      isPersonal: isPersonal || false,
+      agentId: agentId || null,
+    };
+    const localEvents = await getLocalEvents();
+    localEvents.push(localEvent);
+    await saveLocalEvents(localEvents);
+    return localEvent;
+  };
+
+  try {
     const startFormatted = formatICalDate(new Date(start).toISOString());
     const endFormatted = formatICalDate(new Date(end).toISOString());
 
@@ -183,11 +247,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: true, eventId: eventUid });
     }
 
-    console.log('CalDAV create failed, event would be stored locally');
+    // CalDAV failed, store locally
+    console.log('CalDAV create failed, storing event locally');
+    await saveEventLocally();
     return NextResponse.json({ success: true, eventId: eventUid, local: true });
   } catch (error) {
     console.error('Error creating event:', error);
-    return NextResponse.json({ success: true, local: true });
+    // Store locally on error
+    if (title) {
+      await saveEventLocally();
+      return NextResponse.json({ success: true, eventId: eventUid, local: true });
+    }
+    return NextResponse.json({ success: false, error: 'Failed to create event' }, { status: 500 });
   }
 }
 
