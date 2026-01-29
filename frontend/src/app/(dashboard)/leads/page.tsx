@@ -58,7 +58,10 @@ export default function LeadsPage() {
   const [showImportExport, setShowImportExport] = useState(false);
 
   const { openModal, closeModal } = useUIStore();
-  const { hasMinimumRole } = useAuthStore();
+  const { user, hasMinimumRole, isAdmin } = useAuthStore();
+
+  // Get agentId for filtering - admins see all leads, agents see only their own
+  const agentIdFilter = isAdmin() ? undefined : (user?.id ? parseInt(user.id, 10) : undefined);
 
   // Fetch leads
   const { data, loading, refetch } = useQuery(GET_LEADS, {
@@ -67,6 +70,7 @@ export default function LeadsPage() {
       status: statusFilter || undefined,
       source: sourceFilter || undefined,
       search: search || undefined,
+      agentId: agentIdFilter,
     },
   });
 
