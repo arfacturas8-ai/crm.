@@ -40,6 +40,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const { stages } = usePipelineStore();
   const isEditing = !!deal;
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string>(leadId || '');
 
   // Get stage options from pipeline store
   const stageOptions = useMemo(() => {
@@ -58,7 +59,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   const leads = leadsData?.leads?.nodes || [];
   const leadOptions = [
-    { value: '', label: 'Sin lead asociado' },
+    { value: '', label: 'Escribir manualmente' },
     ...leads.map((lead: any) => ({
       value: lead.id,
       label: `${lead.name} - ${lead.mobile || lead.email}`,
@@ -79,6 +80,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -93,6 +95,29 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
       detalles: deal?.detalles || '',
     },
   });
+
+  // Watch form values for display
+  const watchedName = watch('leadName');
+  const watchedMobile = watch('leadMobile');
+
+  // Auto-fill lead info when a lead is selected
+  useEffect(() => {
+    if (selectedLeadId && leads.length > 0) {
+      const lead = leads.find((l: any) => l.id === selectedLeadId);
+      if (lead) {
+        setValue('leadName', lead.name || '');
+        setValue('leadMobile', lead.mobile || '');
+        setValue('leadEmail', lead.email || '');
+      }
+    }
+  }, [selectedLeadId, leads, setValue]);
+
+  // Auto-fill from leadId prop on mount
+  useEffect(() => {
+    if (leadId && leads.length > 0) {
+      setSelectedLeadId(leadId);
+    }
+  }, [leadId, leads]);
 
   // Auto-fill busca (what they're looking for) when property is selected
   useEffect(() => {
@@ -171,6 +196,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const onSubmit = async (data: DealFormData) => {
     // Build propiedad from selected property title
     const propiedadValue = selectedProperty?.title || data.busca || undefined;
+    const propertyIdValue = selectedProperty?.databaseId || undefined;
 
     if (isEditing) {
       updateDeal({
@@ -182,6 +208,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
             calificacion: data.calificacion || undefined,
             proximoPaso: data.proximoPaso || undefined,
             propiedad: propiedadValue,
+            propertyId: propertyIdValue,
             detalles: data.detalles || undefined,
           },
         },
@@ -198,6 +225,7 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
             calificacion: data.calificacion || undefined,
             proximoPaso: data.proximoPaso || undefined,
             propiedad: propiedadValue,
+            propertyId: propertyIdValue,
             detalles: data.detalles || undefined,
           },
         },
@@ -229,6 +257,36 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
       {/* Lead Info - Required for new deals */}
       {!isEditing && (
         <>
+          {/* Lead Selector - Auto-fills contact info */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Seleccionar Lead Existente
+            </label>
+            <select
+              value={selectedLeadId}
+              onChange={(e) => setSelectedLeadId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent"
+            >
+              {leadOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Selecciona un lead para auto-rellenar los datos
+            </p>
+          </div>
+
+          {/* Show selected lead info or manual input */}
+          {selectedLeadId && watchedName ? (
+            <div className="p-4 bg-[#faf5f0] rounded-lg border border-[#e0ccb0]">
+              <p className="font-medium text-[#8B4513]">Lead seleccionado:</p>
+              <p className="text-black text-lg">{watchedName}</p>
+              <p className="text-gray-600">{watchedMobile}</p>
+            </div>
+          ) : null}
+
           <Input
             label="Nombre del cliente *"
             placeholder="Ej: Juan Pérez"
