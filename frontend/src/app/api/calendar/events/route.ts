@@ -91,9 +91,15 @@ function formatICalDate(dateStr: string): string {
 
 // POST - Fetch events (supports agentId filter for personal events)
 export async function POST(request: NextRequest) {
+  let year: number;
+  let month: number;
+  let agentId: string | undefined;
+
   try {
     const body = await request.json();
-    const { year, month, agentId } = body;
+    year = body.year;
+    month = body.month;
+    agentId = body.agentId;
 
     // Calculate date range for the month
     const startDate = new Date(year, month - 1, 1);
@@ -164,8 +170,8 @@ export async function POST(request: NextRequest) {
     console.error('Error fetching calendar events:', error);
     // Try to return local events on error
     const now = new Date();
-    const fallbackYear = typeof year !== 'undefined' ? year : now.getFullYear();
-    const fallbackMonth = typeof month !== 'undefined' ? month : now.getMonth() + 1;
+    const fallbackYear = year || now.getFullYear();
+    const fallbackMonth = month || now.getMonth() + 1;
     const localEvents = await getLocalEvents();
     const filteredLocalEvents = localEvents.filter(e => {
       const eventDate = new Date(e.start);
