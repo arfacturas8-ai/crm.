@@ -91,14 +91,15 @@ function formatICalDate(dateStr: string): string {
 
 // POST - Fetch events (supports agentId filter for personal events)
 export async function POST(request: NextRequest) {
-  let year: number;
-  let month: number;
+  const now = new Date();
+  let year: number = now.getFullYear();
+  let month: number = now.getMonth() + 1;
   let agentId: string | undefined;
 
   try {
     const body = await request.json();
-    year = body.year;
-    month = body.month;
+    year = body.year || year;
+    month = body.month || month;
     agentId = body.agentId;
 
     // Calculate date range for the month
@@ -168,17 +169,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ events: filteredEvents });
   } catch (error) {
     console.error('Error fetching calendar events:', error);
-    // Try to return local events on error
-    const now = new Date();
-    const fallbackYear = year || now.getFullYear();
-    const fallbackMonth = month || now.getMonth() + 1;
+    // Try to return local events on error - year/month already have defaults
     const localEvents = await getLocalEvents();
     const filteredLocalEvents = localEvents.filter(e => {
       const eventDate = new Date(e.start);
-      return eventDate.getFullYear() === fallbackYear && eventDate.getMonth() === fallbackMonth - 1;
+      return eventDate.getFullYear() === year && eventDate.getMonth() === month - 1;
     });
     return NextResponse.json({
-      events: filteredLocalEvents.length > 0 ? filteredLocalEvents : generateDemoEvents(fallbackYear, fallbackMonth),
+      events: filteredLocalEvents.length > 0 ? filteredLocalEvents : generateDemoEvents(year, month),
     });
   }
 }
