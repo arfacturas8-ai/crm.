@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import {
   Calendar,
   Tag,
@@ -16,6 +16,9 @@ import {
   Home,
   Plus,
   Building,
+  MapPin,
+  Bed,
+  Bath,
 } from 'lucide-react';
 import { GET_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
 import { Badge } from '@/components/ui/Badge';
@@ -24,6 +27,33 @@ import { Card } from '@/components/ui/Card';
 import { PropertySelector } from '@/components/ui/PropertySelector';
 import { useUIStore } from '@/store/ui-store';
 import { type Deal } from '@/types';
+
+// Query to fetch property by ID
+const GET_PROPERTY_BY_ID = gql`
+  query GetPropertyById($id: ID!) {
+    property(id: $id, idType: DATABASE_ID) {
+      id
+      databaseId
+      title
+      uri
+      featuredImage {
+        node {
+          sourceUrl
+        }
+      }
+      propertyPrice
+      propertyBedrooms
+      propertyBathrooms
+      propertyAddress
+      formattedPrice
+      propertyCities {
+        nodes {
+          name
+        }
+      }
+    }
+  }
+`;
 
 interface DealDetailProps {
   deal: Deal;
@@ -76,8 +106,17 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   // Notes from the deal (array of note objects)
   const notes = fullDeal?.notes || [];
 
-  // Property is stored as text (propiedad field)
+  // Property is stored as text (propiedad field) and ID (propertyId)
   const propertyText = fullDeal?.propiedad;
+  const propertyId = fullDeal?.propertyId;
+
+  // Fetch property details if we have a propertyId
+  const { data: propertyData } = useQuery(GET_PROPERTY_BY_ID, {
+    variables: { id: String(propertyId) },
+    skip: !propertyId,
+  });
+
+  const linkedProperty = propertyData?.property;
 
   // Lead info is directly in the deal
   const leadInfo = {
@@ -143,6 +182,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
         input: {
           id: deal.id,
           propiedad: selectedProperty.title, // Send property title as text
+          propertyId: selectedProperty.databaseId, // Send property ID for fetching details
         },
       },
     });
@@ -172,13 +212,27 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
     const baseUrl = window.location.origin;
 
     let propertySection = '';
-    if (propertyText) {
+    if (propertyText || linkedProperty) {
+      const propTitle = linkedProperty?.title || propertyText || '';
+      const propImage = linkedProperty?.featuredImage?.node?.sourceUrl || '';
+      const propAddress = linkedProperty?.propertyAddress || '';
+      const propBedrooms = linkedProperty?.propertyBedrooms || '';
+      const propBathrooms = linkedProperty?.propertyBathrooms || '';
+      const propPrice = linkedProperty?.formattedPrice || '';
+
       propertySection = `
         <div class="property-section">
           <h3 class="section-title">Propiedad</h3>
           <div class="property-card">
+            ${propImage ? `<img src="${propImage}" alt="${propTitle}" class="property-image" />` : '<div class="property-placeholder">🏠</div>'}
             <div class="property-info">
-              <h4>${propertyText}</h4>
+              <h4>${propTitle}</h4>
+              ${propAddress ? `<p class="property-address">📍 ${propAddress}</p>` : ''}
+              <div class="property-details">
+                ${propBedrooms ? `<span>🛏️ ${propBedrooms} Hab.</span>` : ''}
+                ${propBathrooms ? `<span>🚿 ${propBathrooms} Baños</span>` : ''}
+                ${propPrice ? `<span class="property-price">${propPrice}</span>` : ''}
+              </div>
             </div>
           </div>
         </div>
@@ -221,8 +275,13 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           .section-title { color: #8B4513; font-size: 18px; font-weight: bold; margin: 35px 0 20px 0; border-bottom: 2px solid #e0ccb0; padding-bottom: 10px; }
           .property-section { margin-top: 30px; }
           .property-card { display: flex; gap: 25px; padding: 20px; border: 1px solid #e0ccb0; border-radius: 12px; background: #faf5f0; }
+          .property-image { width: 200px; height: 150px; object-fit: cover; border-radius: 8px; }
+          .property-placeholder { width: 200px; height: 150px; background: #e0ccb0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px; }
           .property-info { flex: 1; }
           .property-info h4 { margin: 0 0 12px 0; color: #333; font-size: 18px; }
+          .property-address { margin: 8px 0; color: #666; font-size: 14px; }
+          .property-details { display: flex; gap: 15px; margin-top: 12px; font-size: 14px; color: #555; }
+          .property-price { color: #8B4513; font-weight: bold; font-size: 16px; }
           .footer { margin-top: 50px; text-align: center; color: #8B4513; font-size: 12px; padding-top: 20px; border-top: 1px solid #e0ccb0; }
           @media print { body { padding: 20px; } }
         </style>
@@ -458,15 +517,58 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
         {/* Property Tab */}
         {activeTab === 'property' && (
           <div className="space-y-6">
-            {propertyText ? (
+            {propertyText || linkedProperty ? (
               <Card className="p-5 border-[#e0ccb0]">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 bg-[#e0ccb0] rounded-xl flex items-center justify-center">
-                    <Home size={32} className="text-[#8B4513]" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-bold text-black">{propertyText}</h4>
-                    <p className="text-gray-500 text-sm">Propiedad vinculada</p>
+                {/* Property Image and Details */}
+                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                  {linkedProperty?.featuredImage?.node?.sourceUrl ? (
+                    <img
+                      src={linkedProperty.featuredImage.node.sourceUrl}
+                      alt={linkedProperty.title || propertyText}
+                      className="w-full md:w-48 h-36 object-cover rounded-xl"
+                    />
+                  ) : (
+                    <div className="w-full md:w-48 h-36 bg-[#e0ccb0] rounded-xl flex items-center justify-center">
+                      <Home size={48} className="text-[#8B4513]" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-xl font-bold text-black">{linkedProperty?.title || propertyText}</h4>
+                    {linkedProperty?.propertyAddress && (
+                      <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                        <MapPin size={14} />
+                        {linkedProperty.propertyAddress}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-4 mt-3">
+                      {linkedProperty?.propertyBedrooms && (
+                        <span className="flex items-center gap-1 text-sm text-gray-600">
+                          <Bed size={16} className="text-[#8B4513]" />
+                          {linkedProperty.propertyBedrooms} Hab.
+                        </span>
+                      )}
+                      {linkedProperty?.propertyBathrooms && (
+                        <span className="flex items-center gap-1 text-sm text-gray-600">
+                          <Bath size={16} className="text-[#8B4513]" />
+                          {linkedProperty.propertyBathrooms} Baños
+                        </span>
+                      )}
+                      {linkedProperty?.formattedPrice && (
+                        <span className="text-lg font-bold text-[#8B4513]">
+                          {linkedProperty.formattedPrice}
+                        </span>
+                      )}
+                    </div>
+                    {linkedProperty?.uri && (
+                      <a
+                        href={`https://habitacr.com${linkedProperty.uri}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-3 text-sm text-[#8B4513] hover:underline"
+                      >
+                        Ver propiedad en el sitio →
+                      </a>
+                    )}
                   </div>
                 </div>
                 <div className="pt-4 border-t border-[#e0ccb0]">

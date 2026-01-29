@@ -14,6 +14,7 @@ export const DEAL_FRAGMENT = gql`
     calificacion
     proximoPaso
     propiedad
+    propertyId
     detalles
     fecha1
     fecha2
@@ -53,6 +54,7 @@ export const GET_DEALS = gql`
         calificacion
         proximoPaso
         propiedad
+        propertyId
         detalles
         agentId
         agentName
@@ -80,6 +82,7 @@ export const GET_DEALS_BY_STAGE = gql`
         calificacion
         proximoPaso
         propiedad
+        propertyId
         detalles
         agentId
         agentName
@@ -106,6 +109,7 @@ export const GET_DEAL = gql`
       calificacion
       proximoPaso
       propiedad
+      propertyId
       detalles
       fecha1
       fecha2
@@ -140,6 +144,7 @@ export const CREATE_DEAL = gql`
         calificacion
         proximoPaso
         propiedad
+        propertyId
         detalles
         agentId
         agentName
@@ -168,6 +173,7 @@ export const UPDATE_DEAL = gql`
         calificacion
         proximoPaso
         propiedad
+        propertyId
         detalles
         fecha1
         fecha2
