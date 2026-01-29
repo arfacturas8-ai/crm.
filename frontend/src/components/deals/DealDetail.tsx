@@ -28,7 +28,7 @@ import { PropertySelector } from '@/components/ui/PropertySelector';
 import { useUIStore } from '@/store/ui-store';
 import { type Deal } from '@/types';
 
-// Query to fetch property by ID
+// Query to fetch property by ID with gallery images
 const GET_PROPERTY_BY_ID = gql`
   query GetPropertyById($id: ID!) {
     property(id: $id, idType: DATABASE_ID) {
@@ -40,6 +40,9 @@ const GET_PROPERTY_BY_ID = gql`
         node {
           sourceUrl
         }
+      }
+      propertyGallery {
+        sourceUrl
       }
       propertyPrice
       propertyBedrooms
@@ -519,19 +522,37 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           <div className="space-y-6">
             {propertyText || linkedProperty ? (
               <Card className="p-5 border-[#e0ccb0]">
-                {/* Property Image and Details */}
-                <div className="flex flex-col md:flex-row gap-4 mb-4">
-                  {linkedProperty?.featuredImage?.node?.sourceUrl ? (
+                {/* Property Gallery - All Images */}
+                {linkedProperty?.propertyGallery && linkedProperty.propertyGallery.length > 0 ? (
+                  <div className="mb-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {linkedProperty.propertyGallery.map((img: any, idx: number) => (
+                        <img
+                          key={idx}
+                          src={img.sourceUrl}
+                          alt={`${linkedProperty.title || propertyText} - ${idx + 1}`}
+                          className="w-full h-24 md:h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(img.sourceUrl, '_blank')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : linkedProperty?.featuredImage?.node?.sourceUrl ? (
+                  <div className="mb-4">
                     <img
                       src={linkedProperty.featuredImage.node.sourceUrl}
                       alt={linkedProperty.title || propertyText}
-                      className="w-full md:w-48 h-36 object-cover rounded-xl"
+                      className="w-full h-48 object-cover rounded-xl"
                     />
-                  ) : (
-                    <div className="w-full md:w-48 h-36 bg-[#e0ccb0] rounded-xl flex items-center justify-center">
-                      <Home size={48} className="text-[#8B4513]" />
-                    </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="w-full h-36 bg-[#e0ccb0] rounded-xl flex items-center justify-center mb-4">
+                    <Home size={48} className="text-[#8B4513]" />
+                  </div>
+                )}
+
+                {/* Property Details */}
+                <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
                     <h4 className="text-xl font-bold text-black">{linkedProperty?.title || propertyText}</h4>
                     {linkedProperty?.propertyAddress && (

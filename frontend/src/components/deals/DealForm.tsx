@@ -214,9 +214,14 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         },
       });
     } else {
+      // If we selected an existing lead, send leadId to link instead of creating new
+      const selectedLead = selectedLeadId ? leads.find((l: any) => l.id === selectedLeadId) : null;
+      const leadIdValue = selectedLead?.databaseId || undefined;
+
       createDeal({
         variables: {
           input: {
+            leadId: leadIdValue, // Link to existing lead if selected
             leadName: data.leadName,
             leadMobile: data.leadMobile,
             leadEmail: data.leadEmail || undefined,
