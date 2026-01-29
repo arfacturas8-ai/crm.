@@ -21,7 +21,6 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
-import { useAuthStore } from '@/store/auth-store';
 import { cn, formatRelativeTime, formatCurrency } from '@/lib/utils';
 import { type Deal } from '@/types';
 import { DealForm } from '@/components/deals/DealForm';
@@ -93,17 +92,11 @@ export default function DealsPage() {
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
   const { openModal, closeModal, addNotification } = useUIStore();
-  const { user, isAdmin } = useAuthStore();
 
-  // Get agentId for filtering - admins see all, agents see only their own
-  const agentIdFilter = isAdmin() ? undefined : (user?.id ? parseInt(user.id, 10) : undefined);
-
-  const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE, {
-    variables: { agentId: agentIdFilter },
-  });
+  const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
   const { data: propertiesData } = useQuery(GET_PROPERTIES_FOR_DEALS);
   const { data: leadsData } = useQuery(GET_LEADS, {
-    variables: { first: 500, agentId: agentIdFilter }
+    variables: { first: 500 }
   });
 
   // Create lookup maps for properties and leads

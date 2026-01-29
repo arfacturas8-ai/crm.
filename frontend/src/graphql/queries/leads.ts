@@ -24,7 +24,6 @@ export const GET_LEADS = gql`
     $status: String
     $source: String
     $search: String
-    $agentId: Int
   ) {
     leads(
       first: $first
@@ -32,7 +31,6 @@ export const GET_LEADS = gql`
       status: $status
       source: $source
       search: $search
-      agentId: $agentId
     ) {
       nodes {
         id

@@ -20,14 +20,12 @@ export const GET_DEALS = gql`
     $offset: Int
     $stage: String
     $search: String
-    $agentId: Int
   ) {
     deals(
       first: $first
       offset: $offset
       stage: $stage
       search: $search
-      agentId: $agentId
     ) {
       nodes {
         id
@@ -45,8 +43,8 @@ export const GET_DEALS = gql`
 
 // Get all deals for kanban board (filter by stage on client)
 export const GET_DEALS_BY_STAGE = gql`
-  query GetDealsByStage($agentId: Int) {
-    deals(first: 100, agentId: $agentId) {
+  query GetDealsByStage {
+    deals(first: 100) {
       nodes {
         id
         title
