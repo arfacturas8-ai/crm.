@@ -47,36 +47,38 @@ const GET_PROPERTIES_FOR_DEALS = gql`
 // Pipeline tabs
 type PipelineTab = 'potencial' | 'seguimiento' | 'venta';
 
-// Preset stages for each pipeline
+// All 8 preset stages - same for all pipelines
+const ALL_STAGES = [
+  { id: 'nuevo', label: 'Nuevo', color: 'bg-blue-500' },
+  { id: 'contactado', label: 'Contactado', color: 'bg-[#8B4513]' },
+  { id: 'visita-programada', label: 'Visita Programada', color: 'bg-[#a0522d]' },
+  { id: 'seguimiento', label: 'Seguimiento', color: 'bg-[#cd853f]' },
+  { id: 'reserva', label: 'Reserva', color: 'bg-purple-500' },
+  { id: 'formalizado', label: 'Formalizado', color: 'bg-indigo-500' },
+  { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
+  { id: 'ganado', label: 'Ganado', color: 'bg-green-600' },
+];
+
+// Same stages for all pipelines
 const PRESET_STAGES = {
-  potencial: [
-    { id: 'nuevo', label: 'Nuevo', color: 'bg-[#8B4513]' },
-    { id: 'contactado', label: 'Contactado', color: 'bg-[#a0522d]' },
-    { id: 'visita-programada', label: 'Visita Programada', color: 'bg-[#cd853f]' },
-    { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
-  ],
-  seguimiento: [
-    { id: 'seguimiento', label: 'Seguimiento', color: 'bg-[#8B4513]' },
-    { id: 'reserva', label: 'Reserva', color: 'bg-[#a0522d]' },
-    { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
-  ],
-  venta: [
-    { id: 'formalizado', label: 'Formalizado', color: 'bg-[#8B4513]' },
-    { id: 'ganado', label: 'Ganado', color: 'bg-green-600' },
-    { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
-  ],
+  potencial: ALL_STAGES,
+  seguimiento: ALL_STAGES,
+  venta: ALL_STAGES,
 };
 
 // Map deal stages to pipeline tabs
 const getStagePipeline = (stage: string): PipelineTab => {
-  const lowerStage = stage?.toLowerCase() || '';
+  const lowerStage = stage?.toLowerCase().replace(/\s+/g, '-') || '';
+  // Potencial: early stages
   if (['nuevo', 'contactado', 'visita-programada', 'new', 'contacted'].includes(lowerStage)) {
     return 'potencial';
   }
+  // Seguimiento: active follow-up
   if (['seguimiento', 'reserva', 'follow-up', 'reservation'].includes(lowerStage)) {
     return 'seguimiento';
   }
-  if (['formalizado', 'ganado', 'formalized', 'won', 'closed'].includes(lowerStage)) {
+  // Venta: closing stages
+  if (['formalizado', 'ganado', 'descartado', 'formalized', 'won', 'closed', 'lost'].includes(lowerStage)) {
     return 'venta';
   }
   return 'potencial'; // Default
