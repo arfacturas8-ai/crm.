@@ -41,9 +41,7 @@ const GET_PROPERTY_BY_ID = gql`
           sourceUrl
         }
       }
-      propertyGallery {
-        sourceUrl
-      }
+      galleryImages
       propertyPrice
       propertyBedrooms
       propertyBathrooms
@@ -523,16 +521,16 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
             {propertyText || linkedProperty ? (
               <Card className="p-5 border-[#e0ccb0]">
                 {/* Property Gallery - All Images */}
-                {linkedProperty?.propertyGallery && linkedProperty.propertyGallery.length > 0 ? (
+                {linkedProperty?.galleryImages && linkedProperty.galleryImages.length > 0 ? (
                   <div className="mb-4">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {linkedProperty.propertyGallery.map((img: any, idx: number) => (
+                      {linkedProperty.galleryImages.map((imgUrl: string, idx: number) => (
                         <img
                           key={idx}
-                          src={img.sourceUrl}
+                          src={imgUrl}
                           alt={`${linkedProperty.title || propertyText} - ${idx + 1}`}
                           className="w-full h-24 md:h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(img.sourceUrl, '_blank')}
+                          onClick={() => window.open(imgUrl, '_blank')}
                         />
                       ))}
                     </div>
