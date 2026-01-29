@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { gql } from '@apollo/client';
 import {
   Calendar,
-  DollarSign,
   Tag,
   Printer,
   Mail,
@@ -16,51 +14,16 @@ import {
   Edit3,
   X,
   Home,
-  MapPin,
-  Bed,
-  Bath,
   Plus,
   Building,
-  ExternalLink,
 } from 'lucide-react';
 import { GET_DEAL, UPDATE_DEAL } from '@/graphql/queries/deals';
-import { GET_LEAD } from '@/graphql/queries/leads';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PropertySelector } from '@/components/ui/PropertySelector';
 import { useUIStore } from '@/store/ui-store';
-import { type Deal, type DealStage } from '@/types';
-
-// Query to get property by ID
-const GET_PROPERTY = gql`
-  query GetProperty($id: ID!) {
-    property(id: $id, idType: DATABASE_ID) {
-      id
-      databaseId
-      title
-      uri
-      featuredImage {
-        node {
-          sourceUrl
-        }
-      }
-      propertyPrice
-      propertyBedrooms
-      propertyBathrooms
-      propertyAddress
-      formattedPrice
-      propertyCities {
-        nodes {
-          name
-        }
-      }
-      propertyGallery {
-        sourceUrl
-      }
-    }
-  }
-`;
+import { type Deal } from '@/types';
 
 interface DealDetailProps {
   deal: Deal;
@@ -70,6 +33,15 @@ interface DealDetailProps {
 type TabType = 'info' | 'property' | 'notes';
 
 const STAGE_LABELS: Record<string, string> = {
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  'visita-programada': 'Visita Programada',
+  seguimiento: 'Seguimiento',
+  reserva: 'Reserva',
+  formalizado: 'Formalizado',
+  descartado: 'Descartado',
+  ganado: 'Ganado',
+  // Legacy stages
   initial_contact: 'Contacto Inicial',
   qualified: 'Calificado',
   proposal: 'Propuesta',
@@ -81,25 +53,15 @@ const STAGE_LABELS: Record<string, string> = {
   lost: 'Perdido',
 };
 
-const STAGE_COLORS: Record<string, string> = {
-  initial_contact: 'bg-blue-100 text-blue-800',
-  qualified: 'bg-purple-100 text-purple-800',
-  proposal: 'bg-yellow-100 text-yellow-800',
-  negotiation: 'bg-orange-100 text-orange-800',
-  closed_won: 'bg-green-100 text-green-800',
-  closed_lost: 'bg-red-100 text-red-800',
-  active: 'bg-yellow-100 text-yellow-800',
-  won: 'bg-green-100 text-green-800',
-  lost: 'bg-red-100 text-red-800',
-};
-
 export function DealDetail({ deal, onClose }: DealDetailProps) {
   const { addNotification } = useUIStore();
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(deal.title || '');
-  const [editStage, setEditStage] = useState<DealStage>(deal.stage as DealStage);
-  const [editValue, setEditValue] = useState(deal.value?.toString() || '');
+  const [editEstado, setEditEstado] = useState(deal.estado || 'nuevo');
+  const [editBusca, setEditBusca] = useState(deal.busca || '');
+  const [editCalificacion, setEditCalificacion] = useState(deal.calificacion || '');
+  const [editProximoPaso, setEditProximoPaso] = useState(deal.proximoPaso || '');
+  const [editDetalles, setEditDetalles] = useState(deal.detalles || '');
   const [newNote, setNewNote] = useState('');
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [savingProperty, setSavingProperty] = useState(false);
@@ -109,26 +71,20 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
     variables: { id: deal.id },
   });
 
-  const fullDeal: Deal = data?.deal || deal;
-  const notesText = (fullDeal as any)?.notes || '';
-  // Get propertyId directly from deal
-  const propertyId = (fullDeal as any)?.propertyId;
+  const fullDeal: any = data?.deal || deal;
 
-  // Fetch property directly using deal's propertyId
-  const { data: propertyData, loading: propertyLoading } = useQuery(GET_PROPERTY, {
-    variables: { id: propertyId?.toString() },
-    skip: !propertyId,
-  });
+  // Notes from the deal (array of note objects)
+  const notes = fullDeal?.notes || [];
 
-  const linkedProperty = propertyData?.property;
+  // Property is stored as text (propiedad field)
+  const propertyText = fullDeal?.propiedad;
 
-  // Fetch lead data if leadId exists (for contact info)
-  const { data: leadData } = useQuery(GET_LEAD, {
-    variables: { id: fullDeal.leadId?.toString() },
-    skip: !fullDeal.leadId,
-  });
-
-  const linkedLead = leadData?.lead;
+  // Lead info is directly in the deal
+  const leadInfo = {
+    name: fullDeal.leadName,
+    email: fullDeal.leadEmail,
+    mobile: fullDeal.leadMobile,
+  };
 
   // Update deal mutation
   const [updateDeal, { loading: updateLoading }] = useMutation(UPDATE_DEAL, {
@@ -157,9 +113,11 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
 
   // Update edit form when deal changes
   useEffect(() => {
-    setEditTitle(fullDeal.title || '');
-    setEditStage(fullDeal.stage as DealStage);
-    setEditValue(fullDeal.value?.toString() || '');
+    setEditEstado(fullDeal.estado || 'nuevo');
+    setEditBusca(fullDeal.busca || '');
+    setEditCalificacion(fullDeal.calificacion || '');
+    setEditProximoPaso(fullDeal.proximoPaso || '');
+    setEditDetalles(fullDeal.detalles || '');
   }, [fullDeal]);
 
   const handleSaveEdit = () => {
@@ -167,9 +125,11 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       variables: {
         input: {
           id: deal.id,
-          title: editTitle,
-          stage: editStage,
-          value: editValue ? parseFloat(editValue) : undefined,
+          estado: editEstado,
+          busca: editBusca || undefined,
+          calificacion: editCalificacion || undefined,
+          proximoPaso: editProximoPaso || undefined,
+          detalles: editDetalles || undefined,
         },
       },
     });
@@ -182,7 +142,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       variables: {
         input: {
           id: deal.id,
-          propertyId: selectedProperty.databaseId,
+          propiedad: selectedProperty.title, // Send property title as text
         },
       },
     });
@@ -212,45 +172,27 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
     const baseUrl = window.location.origin;
 
     let propertySection = '';
-    if (linkedProperty) {
-      const images = linkedProperty.propertyGallery || [];
-      const mainImage = linkedProperty.featuredImage?.node?.sourceUrl;
-      const city = linkedProperty.propertyCities?.nodes?.[0]?.name || '';
-
+    if (propertyText) {
       propertySection = `
         <div class="property-section">
           <h3 class="section-title">Propiedad</h3>
           <div class="property-card">
-            ${mainImage ? `<img src="${mainImage}" alt="${linkedProperty.title}" class="property-main-image" />` : ''}
             <div class="property-info">
-              <h4>${linkedProperty.title}</h4>
-              ${linkedProperty.propertyAddress ? `<p class="property-address">📍 ${linkedProperty.propertyAddress}</p>` : ''}
-              ${city ? `<p class="property-city">🏙 ${city}</p>` : ''}
-              <div class="property-features">
-                ${linkedProperty.propertyBedrooms ? `<span>🛏 ${linkedProperty.propertyBedrooms} Hab.</span>` : ''}
-                ${linkedProperty.propertyBathrooms ? `<span>🚿 ${linkedProperty.propertyBathrooms} Baños</span>` : ''}
-              </div>
-              ${linkedProperty.formattedPrice || linkedProperty.propertyPrice ? `<p class="property-price">${linkedProperty.formattedPrice || formatCurrency(linkedProperty.propertyPrice)}</p>` : ''}
+              <h4>${propertyText}</h4>
             </div>
           </div>
-          ${images.length > 0 ? `
-            <h4 class="gallery-title">Galería (${images.length} imágenes)</h4>
-            <div class="property-gallery">
-              ${images.map((img: any) => `<img src="${img.sourceUrl}" alt="Galería" class="gallery-image" />`).join('')}
-            </div>
-          ` : ''}
         </div>
       `;
     }
 
     let leadSection = '';
-    if (linkedLead) {
+    if (leadInfo.name) {
       leadSection = `
         <div class="info-card">
           <div class="info-label">Cliente</div>
-          <div class="info-item"><strong>${linkedLead.name}</strong></div>
-          ${linkedLead.mobile ? `<div class="info-item">📱 ${linkedLead.mobile}</div>` : ''}
-          ${linkedLead.email ? `<div class="info-item">✉️ ${linkedLead.email}</div>` : ''}
+          <div class="info-item"><strong>${leadInfo.name}</strong></div>
+          ${leadInfo.mobile ? `<div class="info-item">📱 ${leadInfo.mobile}</div>` : ''}
+          ${leadInfo.email ? `<div class="info-item">✉️ ${leadInfo.email}</div>` : ''}
         </div>
       `;
     }
@@ -259,7 +201,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Deal - ${fullDeal.title}</title>
+        <title>Deal - ${fullDeal.leadName}</title>
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; max-width: 900px; margin: 0 auto; }
           .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 3px solid #8B4513; padding-bottom: 20px; }
@@ -279,44 +221,45 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           .section-title { color: #8B4513; font-size: 18px; font-weight: bold; margin: 35px 0 20px 0; border-bottom: 2px solid #e0ccb0; padding-bottom: 10px; }
           .property-section { margin-top: 30px; }
           .property-card { display: flex; gap: 25px; padding: 20px; border: 1px solid #e0ccb0; border-radius: 12px; background: #faf5f0; }
-          .property-main-image { width: 220px; height: 160px; object-fit: cover; border-radius: 10px; }
           .property-info { flex: 1; }
           .property-info h4 { margin: 0 0 12px 0; color: #333; font-size: 18px; }
-          .property-address, .property-city { color: #666; margin: 6px 0; }
-          .property-features { display: flex; gap: 20px; margin: 12px 0; color: #666; }
-          .property-price { color: #8B4513; font-size: 22px; font-weight: bold; margin-top: 15px; }
-          .gallery-title { color: #8B4513; font-size: 14px; margin: 25px 0 15px 0; }
-          .property-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-          .gallery-image { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
           .footer { margin-top: 50px; text-align: center; color: #8B4513; font-size: 12px; padding-top: 20px; border-top: 1px solid #e0ccb0; }
-          @media print { body { padding: 20px; } .property-gallery { grid-template-columns: repeat(3, 1fr); } }
+          @media print { body { padding: 20px; } }
         </style>
       </head>
       <body>
         <div class="header">
           <img src="${baseUrl}/images/habita-logo.jpg" class="logo" alt="HabitaCR" onerror="this.style.display='none'" />
           <div>
-            <div class="title">HabitaCR - Ficha de Deal</div>
+            <div class="title">HabitaCR - Ficha de Seguimiento</div>
             <div class="subtitle">${new Date().toLocaleDateString('es-CR', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
           </div>
         </div>
         <div class="deal-header">
-          <div class="deal-avatar">${fullDeal.title?.charAt(0).toUpperCase() || 'D'}</div>
+          <div class="deal-avatar">${fullDeal.leadName?.charAt(0).toUpperCase() || 'D'}</div>
           <div class="deal-info">
-            <h2>${fullDeal.title}</h2>
-            <span class="badge ${fullDeal.stage === 'won' || fullDeal.stage === 'closed_won' ? 'badge-won' : fullDeal.stage === 'lost' || fullDeal.stage === 'closed_lost' ? 'badge-lost' : ''}">${STAGE_LABELS[fullDeal.stage] || fullDeal.stage}</span>
+            <h2>${fullDeal.leadName}</h2>
+            <span class="badge ${fullDeal.estado === 'ganado' ? 'badge-won' : fullDeal.estado === 'descartado' ? 'badge-lost' : ''}">${STAGE_LABELS[fullDeal.estado] || fullDeal.estado}</span>
           </div>
         </div>
         <div class="info-grid">
           <div class="info-card">
-            <div class="info-label">Información del Deal</div>
+            <div class="info-label">Información del Seguimiento</div>
             <div class="info-item">📅 Creado: ${formatDate(fullDeal.createdAt)}</div>
-            ${fullDeal.value ? `<div class="info-item">💰 Valor: ${formatCurrency(fullDeal.value)}</div>` : ''}
-            <div class="info-item">📊 Estado: ${STAGE_LABELS[fullDeal.stage] || fullDeal.stage}</div>
+            <div class="info-item">📊 Estado: ${STAGE_LABELS[fullDeal.estado] || fullDeal.estado}</div>
+            ${fullDeal.busca ? `<div class="info-item">🔍 Busca: ${fullDeal.busca}</div>` : ''}
+            ${fullDeal.calificacion ? `<div class="info-item">⭐ Calificación: ${fullDeal.calificacion}</div>` : ''}
+            ${fullDeal.proximoPaso ? `<div class="info-item">➡️ Próximo paso: ${fullDeal.proximoPaso}</div>` : ''}
           </div>
           ${leadSection}
         </div>
         ${propertySection}
+        ${fullDeal.detalles ? `
+          <div class="info-card" style="margin-top: 20px;">
+            <div class="info-label">Detalles</div>
+            <div class="info-item">${fullDeal.detalles}</div>
+          </div>
+        ` : ''}
         <div class="footer">
           <p><strong>HabitaCR</strong> - CRM Inmobiliario</p>
           <p>www.habitacr.com</p>
@@ -328,9 +271,9 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
     printWindow.print();
   };
 
-  const getStageVariant = (stage: string) => {
-    if (stage === 'won' || stage === 'closed_won') return 'won';
-    if (stage === 'lost' || stage === 'closed_lost') return 'lost';
+  const getStageVariant = (estado: string) => {
+    if (estado === 'ganado') return 'won';
+    if (estado === 'descartado') return 'lost';
     return 'active';
   };
 
@@ -354,17 +297,17 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       <div className="flex items-center justify-between p-6 border-b border-[#e0ccb0]">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-[#8B4513] flex items-center justify-center text-white text-xl font-bold">
-            {fullDeal.title?.charAt(0).toUpperCase() || 'D'}
+            {fullDeal.leadName?.charAt(0).toUpperCase() || 'D'}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-black">{fullDeal.title}</h2>
+            <h2 className="text-xl font-bold text-black">{fullDeal.leadName}</h2>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant={getStageVariant(fullDeal.stage)}>
-                {STAGE_LABELS[fullDeal.stage] || fullDeal.stage}
+              <Badge variant={getStageVariant(fullDeal.estado)}>
+                {STAGE_LABELS[fullDeal.estado] || fullDeal.estado}
               </Badge>
-              {fullDeal.value && (
-                <span className="text-[#8B4513] font-semibold">
-                  {formatCurrency(fullDeal.value)}
+              {fullDeal.calificacion && (
+                <span className="text-[#8B4513] font-semibold text-sm">
+                  {fullDeal.calificacion}
                 </span>
               )}
             </div>
@@ -388,23 +331,19 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       </div>
 
       {/* Quick Actions */}
-      {linkedLead && (
+      {leadInfo.mobile && (
         <div className="flex items-center gap-3 px-6 py-3 bg-[#faf5f0] border-b border-[#e0ccb0]">
           <span className="text-sm text-gray-600">Contactar:</span>
-          {linkedLead.mobile && (
-            <>
-              <a href={`https://wa.me/${linkedLead.mobile.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-sm hover:bg-[#1da851]">
-                <MessageSquare size={14} />
-                WhatsApp
-              </a>
-              <a href={`tel:${linkedLead.mobile}`} className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
-                <Phone size={14} />
-                Llamar
-              </a>
-            </>
-          )}
-          {linkedLead.email && (
-            <a href={`mailto:${linkedLead.email}`} className="flex items-center gap-1 px-3 py-1.5 bg-[#8B4513] text-white rounded-lg text-sm hover:bg-[#6b350f]">
+          <a href={`https://wa.me/${leadInfo.mobile.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-sm hover:bg-[#1da851]">
+            <MessageSquare size={14} />
+            WhatsApp
+          </a>
+          <a href={`tel:${leadInfo.mobile}`} className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
+            <Phone size={14} />
+            Llamar
+          </a>
+          {leadInfo.email && (
+            <a href={`mailto:${leadInfo.email}`} className="flex items-center gap-1 px-3 py-1.5 bg-[#8B4513] text-white rounded-lg text-sm hover:bg-[#6b350f]">
               <Mail size={14} />
               Email
             </a>
@@ -436,19 +375,19 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
             <Card className="p-5 border-[#e0ccb0]">
               <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide flex items-center gap-2">
                 <Tag size={16} />
-                Detalles del Deal
+                Detalles del Seguimiento
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 uppercase mb-1">Etapa</p>
-                  <Badge variant={getStageVariant(fullDeal.stage)}>
-                    {STAGE_LABELS[fullDeal.stage] || fullDeal.stage}
+                  <Badge variant={getStageVariant(fullDeal.estado)}>
+                    {STAGE_LABELS[fullDeal.estado] || fullDeal.estado}
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase mb-1">Valor</p>
+                  <p className="text-xs text-gray-500 uppercase mb-1">Calificación</p>
                   <p className="text-lg font-bold text-[#8B4513]">
-                    {fullDeal.value ? formatCurrency(fullDeal.value) : 'Sin definir'}
+                    {fullDeal.calificacion || 'Sin calificar'}
                   </p>
                 </div>
                 <div>
@@ -458,23 +397,41 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                     {formatDate(fullDeal.createdAt)}
                   </p>
                 </div>
-                {linkedProperty && (
+                {propertyText && (
                   <div>
                     <p className="text-xs text-gray-500 uppercase mb-1">Propiedad</p>
                     <p className="text-black flex items-center gap-2">
                       <Building size={14} className="text-gray-400" />
-                      {linkedProperty.title}
+                      {propertyText}
                     </p>
                   </div>
                 )}
+                {fullDeal.busca && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Qué busca</p>
+                    <p className="text-black">{fullDeal.busca}</p>
+                  </div>
+                )}
+                {fullDeal.proximoPaso && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Próximo paso</p>
+                    <p className="text-black">{fullDeal.proximoPaso}</p>
+                  </div>
+                )}
               </div>
+              {fullDeal.detalles && (
+                <div className="mt-4 pt-4 border-t border-[#e0ccb0]">
+                  <p className="text-xs text-gray-500 uppercase mb-2">Detalles</p>
+                  <p className="text-black whitespace-pre-wrap">{fullDeal.detalles}</p>
+                </div>
+              )}
             </Card>
 
-            {linkedLead && (
+            {leadInfo.name && (
               <Card className="p-5 border-[#e0ccb0]">
                 <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide flex items-center gap-2">
                   <User size={16} />
-                  Cliente Asociado
+                  Cliente
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
@@ -482,14 +439,14 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                       <User size={18} className="text-[#8B4513]" />
                     </div>
                     <div>
-                      <p className="font-medium text-black">{linkedLead.name}</p>
-                      <p className="text-sm text-gray-500">{linkedLead.email}</p>
+                      <p className="font-medium text-black">{leadInfo.name}</p>
+                      {leadInfo.email && <p className="text-sm text-gray-500">{leadInfo.email}</p>}
                     </div>
                   </div>
-                  {linkedLead.mobile && (
+                  {leadInfo.mobile && (
                     <p className="text-sm text-gray-600 flex items-center gap-2">
                       <Phone size={14} />
-                      {linkedLead.mobile}
+                      {leadInfo.mobile}
                     </p>
                   )}
                 </div>
@@ -501,74 +458,26 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
         {/* Property Tab */}
         {activeTab === 'property' && (
           <div className="space-y-6">
-            {propertyLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B4513]"></div>
-              </div>
-            ) : linkedProperty ? (
+            {propertyText ? (
               <Card className="p-5 border-[#e0ccb0]">
-                <div className="flex flex-col md:flex-row gap-6">
-                  {linkedProperty.featuredImage?.node?.sourceUrl ? (
-                    <img src={linkedProperty.featuredImage.node.sourceUrl} alt={linkedProperty.title} className="w-full md:w-72 h-52 object-cover rounded-xl" />
-                  ) : (
-                    <div className="w-full md:w-72 h-52 bg-[#e0ccb0] rounded-xl flex items-center justify-center">
-                      <Home size={48} className="text-[#8B4513]" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-black mb-3">{linkedProperty.title}</h4>
-                    {linkedProperty.propertyAddress && (
-                      <p className="text-gray-600 flex items-center gap-2 mb-2">
-                        <MapPin size={16} className="text-[#8B4513]" />
-                        {linkedProperty.propertyAddress}
-                      </p>
-                    )}
-                    {linkedProperty.propertyCities?.nodes?.[0]?.name && (
-                      <p className="text-gray-600 flex items-center gap-2 mb-3">
-                        <Building size={16} className="text-[#8B4513]" />
-                        {linkedProperty.propertyCities.nodes[0].name}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-6 mb-4 text-gray-600">
-                      {linkedProperty.propertyBedrooms && (
-                        <span className="flex items-center gap-2">
-                          <Bed size={18} className="text-[#8B4513]" />
-                          {linkedProperty.propertyBedrooms} Hab.
-                        </span>
-                      )}
-                      {linkedProperty.propertyBathrooms && (
-                        <span className="flex items-center gap-2">
-                          <Bath size={18} className="text-[#8B4513]" />
-                          {linkedProperty.propertyBathrooms} Baños
-                        </span>
-                      )}
-                    </div>
-                    {(linkedProperty.formattedPrice || linkedProperty.propertyPrice) && (
-                      <p className="text-2xl font-bold text-[#8B4513]">
-                        {linkedProperty.formattedPrice || formatCurrency(linkedProperty.propertyPrice)}
-                      </p>
-                    )}
-                    {linkedProperty.uri && (
-                      <a href={linkedProperty.uri} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-4 text-[#8B4513] hover:underline">
-                        <ExternalLink size={16} />
-                        Ver en sitio web
-                      </a>
-                    )}
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-16 h-16 bg-[#e0ccb0] rounded-xl flex items-center justify-center">
+                    <Home size={32} className="text-[#8B4513]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-black">{propertyText}</h4>
+                    <p className="text-gray-500 text-sm">Propiedad vinculada</p>
                   </div>
                 </div>
-
-                {linkedProperty.propertyGallery?.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-[#e0ccb0]">
-                    <h4 className="font-medium text-sm text-[#8B4513] mb-4">
-                      Galería ({linkedProperty.propertyGallery.length} imágenes)
-                    </h4>
-                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-                      {linkedProperty.propertyGallery.map((img: any, idx: number) => (
-                        <img key={idx} src={img.sourceUrl} alt={`Galería ${idx + 1}`} className="w-full h-24 object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer" />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="pt-4 border-t border-[#e0ccb0]">
+                  <p className="text-sm text-gray-500 mb-3">¿Cambiar propiedad?</p>
+                  <PropertySelector selectedProperty={selectedProperty} onSelect={setSelectedProperty} />
+                  {selectedProperty && (
+                    <Button onClick={handleLinkProperty} disabled={savingProperty} className="w-full mt-3 bg-[#8B4513] hover:bg-[#6b350f] text-white">
+                      {savingProperty ? 'Actualizando...' : 'Actualizar Propiedad'}
+                    </Button>
+                  )}
+                </div>
               </Card>
             ) : (
               <Card className="p-8 border-[#e0ccb0]">
@@ -578,7 +487,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                     Sin propiedad vinculada
                   </h3>
                   <p className="text-gray-500">
-                    Selecciona una propiedad para vincular a este deal
+                    Selecciona una propiedad para vincular a este seguimiento
                   </p>
                 </div>
 
@@ -605,7 +514,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               <textarea
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Escribe una nota sobre este deal..."
+                placeholder="Escribe una nota sobre este seguimiento..."
                 rows={4}
                 className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent resize-none"
               />
@@ -621,14 +530,21 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
                 Notas
               </h3>
-              {notesText ? (
-                <div className="p-4 bg-[#faf5f0] rounded-lg">
-                  <p className="text-black whitespace-pre-wrap">{notesText}</p>
+              {notes.length > 0 ? (
+                <div className="space-y-3">
+                  {notes.map((note: any) => (
+                    <div key={note.id} className="p-4 bg-[#faf5f0] rounded-lg">
+                      <p className="text-black whitespace-pre-wrap">{note.content}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {note.authorName} - {formatDate(note.createdAt)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No hay notas para este deal</p>
+                  <p className="text-gray-500">No hay notas para este seguimiento</p>
                 </div>
               )}
             </Card>
@@ -639,29 +555,47 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       {/* Edit Modal */}
       {isEditing && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-[#e0ccb0]">
-              <h3 className="text-lg font-bold text-black">Editar Deal</h3>
+              <h3 className="text-lg font-bold text-black">Editar Seguimiento</h3>
               <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-[#f0e6d8] rounded-lg">
                 <X size={20} className="text-gray-500" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
-                <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent" />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Etapa</label>
-                <select value={editStage} onChange={(e) => setEditStage(e.target.value as DealStage)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent">
-                  <option value="active">Activo</option>
-                  <option value="won">Ganado</option>
-                  <option value="lost">Perdido</option>
+                <select value={editEstado} onChange={(e) => setEditEstado(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent">
+                  <option value="nuevo">Nuevo</option>
+                  <option value="contactado">Contactado</option>
+                  <option value="visita-programada">Visita Programada</option>
+                  <option value="seguimiento">Seguimiento</option>
+                  <option value="reserva">Reserva</option>
+                  <option value="formalizado">Formalizado</option>
+                  <option value="descartado">Descartado</option>
+                  <option value="ganado">Ganado</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent" placeholder="0" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">¿Qué busca?</label>
+                <input type="text" value={editBusca} onChange={(e) => setEditBusca(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent" placeholder="Casa, apartamento, terreno..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Calificación</label>
+                <select value={editCalificacion} onChange={(e) => setEditCalificacion(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent">
+                  <option value="">Sin calificar</option>
+                  <option value="caliente">Caliente</option>
+                  <option value="tibio">Tibio</option>
+                  <option value="frio">Frío</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Próximo paso</label>
+                <input type="text" value={editProximoPaso} onChange={(e) => setEditProximoPaso(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent" placeholder="Agendar visita, enviar cotización..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Detalles</label>
+                <textarea value={editDetalles} onChange={(e) => setEditDetalles(e.target.value)} className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent resize-none" rows={3} placeholder="Notas adicionales..." />
               </div>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-[#e0ccb0]">

@@ -15,12 +15,16 @@ import { useUIStore } from '@/store/ui-store';
 import { usePipelineStore, mapLegacyStage } from '@/store/pipeline-store';
 import { type Deal } from '@/types';
 
-// Schema matching server: title, leadId, stage, value, propertyId
+// Schema matching server: leadName, leadMobile, estado, propiedad, etc.
 const dealSchema = z.object({
-  title: z.string().min(1, 'Titulo requerido'),
-  leadId: z.string().optional(),
-  stage: z.string().min(1, 'Etapa requerida'),
-  value: z.string().optional(),
+  leadName: z.string().min(1, 'Nombre requerido'),
+  leadMobile: z.string().min(1, 'Teléfono requerido'),
+  leadEmail: z.string().email().optional().or(z.literal('')),
+  estado: z.string().min(1, 'Etapa requerida'),
+  busca: z.string().optional(),
+  calificacion: z.string().optional(),
+  proximoPaso: z.string().optional(),
+  detalles: z.string().optional(),
 });
 
 type DealFormData = z.infer<typeof dealSchema>;
@@ -63,12 +67,12 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   // Get default stage (first non-terminal stage)
   const getDefaultStage = (): string => {
-    const mappedStage = deal?.stage ? mapLegacyStage(deal.stage) : null;
+    const mappedStage = deal?.estado ? mapLegacyStage(deal.estado) : null;
     if (mappedStage && stages.some((s) => s.id === mappedStage)) {
       return mappedStage;
     }
     const firstActiveStage = stages.find((s) => !s.isTerminal);
-    return firstActiveStage?.id || 'new';
+    return firstActiveStage?.id || 'nuevo';
   };
 
   const {
@@ -79,23 +83,32 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   } = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
     defaultValues: {
-      title: deal?.title || '',
-      leadId: deal?.leadId?.toString() || leadId || '',
-      stage: getDefaultStage(),
-      value: deal?.value?.toString() || '',
+      leadName: deal?.leadName || '',
+      leadMobile: deal?.leadMobile || '',
+      leadEmail: deal?.leadEmail || '',
+      estado: getDefaultStage(),
+      busca: deal?.busca || '',
+      calificacion: deal?.calificacion || '',
+      proximoPaso: deal?.proximoPaso || '',
+      detalles: deal?.detalles || '',
     },
   });
 
-  // Auto-fill title when property is selected
+  // Auto-fill busca (what they're looking for) when property is selected
   useEffect(() => {
     if (selectedProperty && !isEditing) {
-      setValue('title', selectedProperty.title);
-      // Also set value from property price if available
-      if (selectedProperty.propertyPrice) {
-        setValue('value', selectedProperty.propertyPrice.toString());
-      }
+      // Set busca to property title/type
+      setValue('busca', selectedProperty.title || '');
     }
   }, [selectedProperty, setValue, isEditing]);
+
+  // Initialize property from deal's propiedad field
+  useEffect(() => {
+    if (deal?.propiedad && !selectedProperty) {
+      // propiedad is stored as property title, so we display it
+      setValue('busca', deal.propiedad);
+    }
+  }, [deal, setValue, selectedProperty]);
 
   const [createDeal, { loading: createLoading }] = useMutation(CREATE_DEAL, {
     refetchQueries: ['GetDeals', 'GetDealsByStage', 'GetDashboardStats'],
@@ -156,15 +169,20 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
   const loading = createLoading || updateLoading;
 
   const onSubmit = async (data: DealFormData) => {
+    // Build propiedad from selected property title
+    const propiedadValue = selectedProperty?.title || data.busca || undefined;
+
     if (isEditing) {
       updateDeal({
         variables: {
           input: {
             id: deal.id,
-            title: data.title,
-            stage: data.stage,
-            value: data.value ? parseFloat(data.value) : undefined,
-            propertyId: selectedProperty?.databaseId || undefined,
+            estado: data.estado,
+            busca: data.busca || undefined,
+            calificacion: data.calificacion || undefined,
+            proximoPaso: data.proximoPaso || undefined,
+            propiedad: propiedadValue,
+            detalles: data.detalles || undefined,
           },
         },
       });
@@ -172,11 +190,15 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
       createDeal({
         variables: {
           input: {
-            title: data.title,
-            leadId: data.leadId ? parseInt(data.leadId, 10) : undefined,
-            stage: data.stage,
-            value: data.value ? parseFloat(data.value) : undefined,
-            propertyId: selectedProperty?.databaseId || undefined,
+            leadName: data.leadName,
+            leadMobile: data.leadMobile,
+            leadEmail: data.leadEmail || undefined,
+            estado: data.estado,
+            busca: data.busca || undefined,
+            calificacion: data.calificacion || undefined,
+            proximoPaso: data.proximoPaso || undefined,
+            propiedad: propiedadValue,
+            detalles: data.detalles || undefined,
           },
         },
       });
@@ -185,10 +207,10 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Property Selector - Most important */}
+      {/* Property Selector */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Propiedad *
+          Propiedad
         </label>
         <PropertySelector
           selectedProperty={selectedProperty}
@@ -197,40 +219,90 @@ export function DealForm({ deal, leadId, onSuccess }: DealFormProps) {
         <p className="text-xs text-gray-500 mt-1">
           Selecciona la propiedad para este deal
         </p>
+        {selectedProperty && (
+          <p className="text-sm text-[#8B4513] mt-2">
+            Propiedad vinculada: {selectedProperty.title}
+          </p>
+        )}
       </div>
 
-      {/* Title */}
-      <Input
-        label="Título del Deal *"
-        placeholder="Ej: Compra casa en Grecia..."
-        error={errors.title?.message}
-        {...register('title')}
-      />
+      {/* Lead Info - Required for new deals */}
+      {!isEditing && (
+        <>
+          <Input
+            label="Nombre del cliente *"
+            placeholder="Ej: Juan Pérez"
+            error={errors.leadName?.message}
+            {...register('leadName')}
+          />
 
-      {/* Lead Selection - Optional */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Teléfono *"
+              placeholder="Ej: +506 8888-8888"
+              error={errors.leadMobile?.message}
+              {...register('leadMobile')}
+            />
+
+            <Input
+              label="Email"
+              type="email"
+              placeholder="correo@ejemplo.com"
+              error={errors.leadEmail?.message}
+              {...register('leadEmail')}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Stage */}
       <Select
-        label="Lead asociado (opcional)"
-        options={leadOptions}
-        placeholder="Seleccionar lead..."
-        error={errors.leadId?.message}
-        {...register('leadId')}
+        label="Etapa *"
+        options={stageOptions}
+        error={errors.estado?.message}
+        {...register('estado')}
       />
 
-      {/* Stage and Value */}
+      {/* What they're looking for */}
+      <Input
+        label="¿Qué busca?"
+        placeholder="Ej: Casa de playa, Apartamento en ciudad..."
+        error={errors.busca?.message}
+        {...register('busca')}
+      />
+
+      {/* Qualification and Next Step */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
-          label="Etapa *"
-          options={stageOptions}
-          error={errors.stage?.message}
-          {...register('stage')}
+          label="Calificación"
+          options={[
+            { value: '', label: 'Sin calificar' },
+            { value: 'caliente', label: 'Caliente' },
+            { value: 'tibio', label: 'Tibio' },
+            { value: 'frio', label: 'Frío' },
+          ]}
+          error={errors.calificacion?.message}
+          {...register('calificacion')}
         />
 
         <Input
-          label="Valor"
-          type="number"
-          placeholder="0"
-          error={errors.value?.message}
-          {...register('value')}
+          label="Próximo paso"
+          placeholder="Ej: Agendar visita, Enviar cotización..."
+          error={errors.proximoPaso?.message}
+          {...register('proximoPaso')}
+        />
+      </div>
+
+      {/* Details */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Detalles
+        </label>
+        <textarea
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent"
+          rows={3}
+          placeholder="Notas adicionales sobre este deal..."
+          {...register('detalles')}
         />
       </div>
 

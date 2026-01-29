@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import {
   Plus,
   Search,
@@ -10,38 +10,18 @@ import {
   Building2,
   Calendar,
   User,
-  DollarSign,
   Phone,
-  Mail,
 } from 'lucide-react';
 import { GET_DEALS_BY_STAGE, UPDATE_DEAL, DELETE_DEAL } from '@/graphql/queries/deals';
-import { GET_LEADS } from '@/graphql/queries/leads';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
-import { cn, formatRelativeTime, formatCurrency } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import { type Deal } from '@/types';
 import { DealForm } from '@/components/deals/DealForm';
 import { DealDetail } from '@/components/deals/DealDetail';
-
-// Query to get properties for enriching deals
-const GET_PROPERTIES_FOR_DEALS = gql`
-  query GetPropertiesForDeals {
-    properties(first: 500) {
-      nodes {
-        id
-        databaseId
-        title
-        propertyMeta {
-          address
-          price
-        }
-      }
-    }
-  }
-`;
 
 // Pipeline tabs
 type PipelineTab = 'potencial' | 'seguimiento' | 'venta';
@@ -94,52 +74,21 @@ export default function DealsPage() {
   const { openModal, closeModal, addNotification } = useUIStore();
 
   const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
-  const { data: propertiesData } = useQuery(GET_PROPERTIES_FOR_DEALS);
-  const { data: leadsData } = useQuery(GET_LEADS, {
-    variables: { first: 500 }
-  });
 
-  // Create lookup maps for properties and leads
-  const propertiesMap = useMemo(() => {
-    const map = new Map<number, { title: string; address?: string; price?: number }>();
-    propertiesData?.properties?.nodes?.forEach((prop: any) => {
-      map.set(prop.databaseId, {
-        title: prop.title,
-        address: prop.propertyMeta?.address,
-        price: prop.propertyMeta?.price,
-      });
-    });
-    return map;
-  }, [propertiesData]);
-
-  const leadsMap = useMemo(() => {
-    const map = new Map<number, { name: string; email?: string; phone?: string }>();
-    leadsData?.leads?.nodes?.forEach((lead: any) => {
-      map.set(parseInt(lead.id), {
-        name: lead.name,
-        email: lead.email,
-        phone: lead.mobile,
-      });
-    });
-    return map;
-  }, [leadsData]);
-
-  // Enrich deals with property and lead information
+  // Map deals with normalized stage field
   const rawDeals: Deal[] = useMemo(() => {
     const deals = data?.deals?.nodes || [];
-    return deals.map((deal: any) => {
-      const property = deal.propertyId ? propertiesMap.get(deal.propertyId) : null;
-      const lead = deal.leadId ? leadsMap.get(deal.leadId) : null;
-      return {
-        ...deal,
-        propertyTitle: property?.title,
-        propertyAddress: property?.address,
-        contactName: lead?.name,
-        contactEmail: lead?.email,
-        contactPhone: lead?.phone,
-      };
-    });
-  }, [data, propertiesMap, leadsMap]);
+    return deals.map((deal: any) => ({
+      ...deal,
+      // Map server fields to display fields
+      stage: deal.estado || 'nuevo',
+      title: deal.leadName || 'Sin nombre',
+      contactName: deal.leadName,
+      contactPhone: deal.leadMobile,
+      contactEmail: deal.leadEmail,
+      propertyTitle: deal.propiedad,
+    }));
+  }, [data]);
 
   // Data is already filtered by agentId on the server
   const allDeals = rawDeals;
@@ -164,30 +113,28 @@ export default function DealsPage() {
     if (!globalSearch) return allDeals;
     const searchLower = globalSearch.toLowerCase();
     return allDeals.filter((deal) => {
-      const titleMatch = deal.title?.toLowerCase().includes(searchLower);
-      const notesMatch = deal.notes?.toLowerCase().includes(searchLower);
-      const valueMatch = deal.value?.toString().includes(globalSearch);
+      const nameMatch = deal.contactName?.toLowerCase().includes(searchLower);
+      const buscaMatch = deal.busca?.toLowerCase().includes(searchLower);
       const stageMatch = deal.stage?.toLowerCase().includes(searchLower);
-      const contactMatch = deal.contactName?.toLowerCase().includes(searchLower);
       const emailMatch = deal.contactEmail?.toLowerCase().includes(searchLower);
       const phoneMatch = deal.contactPhone?.includes(globalSearch);
       const propertyMatch = deal.propertyTitle?.toLowerCase().includes(searchLower);
-      return titleMatch || notesMatch || valueMatch || stageMatch || contactMatch || emailMatch || phoneMatch || propertyMatch;
+      const detallesMatch = deal.detalles?.toLowerCase().includes(searchLower);
+      return nameMatch || buscaMatch || stageMatch || emailMatch || phoneMatch || propertyMatch || detallesMatch;
     });
   }, [allDeals, globalSearch]);
 
   // Filter deals by active tab and tab search
   const tabFilteredDeals = useMemo(() => {
-    let deals = globalFilteredDeals.filter((deal) => getStagePipeline(deal.stage) === activeTab);
+    let deals = globalFilteredDeals.filter((deal) => getStagePipeline(deal.stage || '') === activeTab);
 
     if (tabSearch) {
       const searchLower = tabSearch.toLowerCase();
       deals = deals.filter((deal) => {
-        const titleMatch = deal.title?.toLowerCase().includes(searchLower);
-        const notesMatch = deal.notes?.toLowerCase().includes(searchLower);
-        const valueMatch = deal.value?.toString().includes(tabSearch);
+        const nameMatch = deal.contactName?.toLowerCase().includes(searchLower);
+        const buscaMatch = deal.busca?.toLowerCase().includes(searchLower);
         const stageMatch = deal.stage?.toLowerCase().includes(searchLower);
-        return titleMatch || notesMatch || valueMatch || stageMatch;
+        return nameMatch || buscaMatch || stageMatch;
       });
     }
 
@@ -216,21 +163,21 @@ export default function DealsPage() {
     return grouped;
   }, [tabFilteredDeals, activeTab]);
 
-  // Stage values
-  const stageValues = useMemo(() => {
-    const values: Record<string, number> = {};
+  // Stage counts
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     Object.entries(dealsByStage).forEach(([stageId, deals]) => {
-      values[stageId] = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
+      counts[stageId] = deals.length;
     });
-    return values;
+    return counts;
   }, [dealsByStage]);
 
   // Tab counts
   const tabCounts = useMemo(() => {
     return {
-      potencial: globalFilteredDeals.filter((d) => getStagePipeline(d.stage) === 'potencial').length,
-      seguimiento: globalFilteredDeals.filter((d) => getStagePipeline(d.stage) === 'seguimiento').length,
-      venta: globalFilteredDeals.filter((d) => getStagePipeline(d.stage) === 'venta').length,
+      potencial: globalFilteredDeals.filter((d) => getStagePipeline(d.stage || '') === 'potencial').length,
+      seguimiento: globalFilteredDeals.filter((d) => getStagePipeline(d.stage || '') === 'seguimiento').length,
+      venta: globalFilteredDeals.filter((d) => getStagePipeline(d.stage || '') === 'venta').length,
     };
   }, [globalFilteredDeals]);
 
@@ -245,7 +192,7 @@ export default function DealsPage() {
     e.preventDefault();
     setDragOverColumn(null);
     if (draggedDeal && draggedDeal.stage !== targetStage) {
-      updateDeal({ variables: { input: { id: draggedDeal.id, stage: targetStage } } });
+      updateDeal({ variables: { input: { id: draggedDeal.id, estado: targetStage } } });
     }
     setDraggedDeal(null);
   };
@@ -270,7 +217,7 @@ export default function DealsPage() {
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Seguimiento</h1>
           <p className="text-gray-500 text-sm">
-            {allDeals.length} registros - Total: {formatCurrency(allDeals.reduce((sum, d) => sum + (d.value || 0), 0))}
+            {allDeals.length} registros en seguimiento
           </p>
         </div>
         <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-deal')}>
@@ -352,7 +299,6 @@ export default function DealsPage() {
           {stages.map((stage) => {
             const deals = dealsByStage[stage.id] || [];
             const isDropTarget = dragOverColumn === stage.id;
-            const stageValue = stageValues[stage.id] || 0;
 
             return (
               <div
@@ -377,9 +323,6 @@ export default function DealsPage() {
                       {deals.length}
                     </span>
                   </div>
-                  {stageValue > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">{formatCurrency(stageValue)}</p>
-                  )}
                 </div>
 
                 {/* Cards */}
@@ -440,11 +383,10 @@ export default function DealsPage() {
                           </div>
                         )}
 
-                        {/* Value */}
-                        {deal.value && (
-                          <p className="text-sm font-bold text-[#8B4513] flex items-center gap-1">
-                            <DollarSign size={14} />
-                            {formatCurrency(deal.value)}
+                        {/* What they're looking for */}
+                        {deal.busca && (
+                          <p className="text-xs text-gray-500 mb-1 truncate">
+                            Busca: {deal.busca}
                           </p>
                         )}
 

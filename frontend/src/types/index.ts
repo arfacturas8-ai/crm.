@@ -36,8 +36,17 @@ export interface Lead {
   updatedAt: string;
 }
 
-// Deal Types - matches server schema (includes all possible server values)
+// Deal Types - matches server schema
 export type DealStage =
+  | 'nuevo'
+  | 'contactado'
+  | 'visita-programada'
+  | 'seguimiento'
+  | 'reserva'
+  | 'formalizado'
+  | 'descartado'
+  | 'ganado'
+  // Legacy stages for backwards compatibility
   | 'new'
   | 'contacted'
   | 'qualified'
@@ -46,7 +55,6 @@ export type DealStage =
   | 'negotiation'
   | 'won'
   | 'lost'
-  // Legacy stages for backwards compatibility
   | 'active'
   | 'initial_contact'
   | 'closed_won'
@@ -54,21 +62,36 @@ export type DealStage =
 
 export interface Deal {
   id: string;
-  title: string;
+  // Lead info (stored directly in deal)
   leadId?: number;
-  propertyId?: number;
-  stage: DealStage;
-  value?: number;
+  leadName?: string;
+  leadEmail?: string;
+  leadMobile?: string;
+  // Deal fields
+  group?: string;
+  busca?: string;
+  estado?: string;
+  calificacion?: string;
+  proximoPaso?: string;
+  propiedad?: string;
+  detalles?: string;
+  fecha1?: string;
+  fecha2?: string;
+  visitaConfirmada?: boolean;
   agentId?: string | number;
+  agentName?: string;
   createdAt: string;
-  notes?: string;
-  // Contact info (from linked lead)
+  updatedAt?: string;
+  notes?: any[];
+  activities?: any[];
+  // Mapped fields for display compatibility
+  stage?: string;
+  title?: string;
+  value?: number;
   contactName?: string;
   contactEmail?: string;
   contactPhone?: string;
-  // Property info
   propertyTitle?: string;
-  propertyAddress?: string;
 }
 
 // Enquiry Types
@@ -175,16 +198,25 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
 };
 
 // Deal Stage Labels (Spanish)
-export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
+export const DEAL_STAGE_LABELS: Record<string, string> = {
+  // Current stages
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  'visita-programada': 'Visita Programada',
+  seguimiento: 'Seguimiento',
+  reserva: 'Reserva',
+  formalizado: 'Formalizado',
+  descartado: 'Descartado',
+  ganado: 'Ganado',
+  // Legacy stages
   new: 'Nuevo',
   contacted: 'Contactado',
   qualified: 'Calificado',
   visit: 'Visita Programada',
   proposal: 'Propuesta',
-  negotiation: 'Negociacion',
+  negotiation: 'Negociación',
   won: 'Ganado',
   lost: 'Perdido',
-  // Legacy stages
   active: 'Activo',
   initial_contact: 'Contacto Inicial',
   closed_won: 'Ganado',

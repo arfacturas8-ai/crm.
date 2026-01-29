@@ -4,12 +4,24 @@ import { gql } from '@apollo/client';
 export const DEAL_FRAGMENT = gql`
   fragment DealFields on Deal {
     id
-    title
     leadId
-    propertyId
-    stage
-    value
+    leadName
+    leadEmail
+    leadMobile
+    group
+    busca
+    estado
+    calificacion
+    proximoPaso
+    propiedad
+    detalles
+    fecha1
+    fecha2
+    visitaConfirmada
+    agentId
+    agentName
     createdAt
+    updatedAt
   }
 `;
 
@@ -18,23 +30,34 @@ export const GET_DEALS = gql`
   query GetDeals(
     $first: Int
     $offset: Int
-    $stage: String
+    $group: String
+    $estado: String
     $search: String
   ) {
     deals(
       first: $first
       offset: $offset
-      stage: $stage
+      group: $group
+      estado: $estado
       search: $search
     ) {
       nodes {
         id
-        title
         leadId
-        propertyId
-        stage
-        value
+        leadName
+        leadEmail
+        leadMobile
+        group
+        busca
+        estado
+        calificacion
+        proximoPaso
+        propiedad
+        detalles
+        agentId
+        agentName
         createdAt
+        updatedAt
       }
       totalCount
     }
@@ -47,12 +70,21 @@ export const GET_DEALS_BY_STAGE = gql`
     deals(first: 100) {
       nodes {
         id
-        title
         leadId
-        propertyId
-        stage
-        value
+        leadName
+        leadEmail
+        leadMobile
+        group
+        busca
+        estado
+        calificacion
+        proximoPaso
+        propiedad
+        detalles
+        agentId
+        agentName
         createdAt
+        updatedAt
       }
       totalCount
     }
@@ -64,13 +96,30 @@ export const GET_DEAL = gql`
   query GetDeal($id: ID!) {
     deal(id: $id) {
       id
-      title
       leadId
-      propertyId
-      stage
-      value
+      leadName
+      leadEmail
+      leadMobile
+      group
+      busca
+      estado
+      calificacion
+      proximoPaso
+      propiedad
+      detalles
+      fecha1
+      fecha2
+      visitaConfirmada
+      agentId
+      agentName
       createdAt
-      notes
+      updatedAt
+      notes {
+        id
+        content
+        authorName
+        createdAt
+      }
     }
   }
 `;
@@ -81,15 +130,24 @@ export const CREATE_DEAL = gql`
     createDeal(input: $input) {
       deal {
         id
-        title
         leadId
-        propertyId
-        stage
-        value
+        leadName
+        leadEmail
+        leadMobile
+        group
+        busca
+        estado
+        calificacion
+        proximoPaso
+        propiedad
+        detalles
+        agentId
+        agentName
         createdAt
+        updatedAt
       }
       success
-      clientMutationId
+      message
     }
   }
 `;
@@ -100,15 +158,27 @@ export const UPDATE_DEAL = gql`
     updateDeal(input: $input) {
       deal {
         id
-        title
         leadId
-        propertyId
-        stage
-        value
+        leadName
+        leadEmail
+        leadMobile
+        group
+        busca
+        estado
+        calificacion
+        proximoPaso
+        propiedad
+        detalles
+        fecha1
+        fecha2
+        visitaConfirmada
+        agentId
+        agentName
         createdAt
+        updatedAt
       }
       success
-      clientMutationId
+      message
     }
   }
 `;
@@ -118,7 +188,7 @@ export const DELETE_DEAL = gql`
   mutation DeleteDeal($input: DeleteDealInput!) {
     deleteDeal(input: $input) {
       success
-      clientMutationId
+      message
     }
   }
 `;
