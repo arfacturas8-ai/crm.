@@ -220,6 +220,17 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
       const propBedrooms = linkedProperty?.propertyBedrooms || '';
       const propBathrooms = linkedProperty?.propertyBathrooms || '';
       const propPrice = linkedProperty?.formattedPrice || '';
+      const galleryImages = linkedProperty?.galleryImages || [];
+
+      // Build gallery HTML
+      let galleryHtml = '';
+      if (galleryImages.length > 0) {
+        galleryHtml = `
+          <div class="property-gallery">
+            ${galleryImages.map((url: string, idx: number) => `<img src="${url}" alt="${propTitle} - ${idx + 1}" class="gallery-thumb" />`).join('')}
+          </div>
+        `;
+      }
 
       propertySection = `
         <div class="property-section">
@@ -236,6 +247,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               </div>
             </div>
           </div>
+          ${galleryHtml}
         </div>
       `;
     }
@@ -283,6 +295,8 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           .property-address { margin: 8px 0; color: #666; font-size: 14px; }
           .property-details { display: flex; gap: 15px; margin-top: 12px; font-size: 14px; color: #555; }
           .property-price { color: #8B4513; font-weight: bold; font-size: 16px; }
+          .property-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 15px; }
+          .gallery-thumb { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; }
           .footer { margin-top: 50px; text-align: center; color: #8B4513; font-size: 12px; padding-top: 20px; border-top: 1px solid #e0ccb0; }
           @media print { body { padding: 20px; } }
         </style>
@@ -520,28 +534,32 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
           <div className="space-y-6">
             {propertyText || linkedProperty ? (
               <Card className="p-5 border-[#e0ccb0]">
-                {/* Property Gallery - All Images */}
-                {linkedProperty?.galleryImages && linkedProperty.galleryImages.length > 0 ? (
+                {/* Featured Image + Gallery */}
+                {linkedProperty?.featuredImage?.node?.sourceUrl || (linkedProperty?.galleryImages && linkedProperty.galleryImages.length > 0) ? (
                   <div className="mb-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {linkedProperty.galleryImages.map((imgUrl: string, idx: number) => (
-                        <img
-                          key={idx}
-                          src={imgUrl}
-                          alt={`${linkedProperty.title || propertyText} - ${idx + 1}`}
-                          className="w-full h-24 md:h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(imgUrl, '_blank')}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : linkedProperty?.featuredImage?.node?.sourceUrl ? (
-                  <div className="mb-4">
-                    <img
-                      src={linkedProperty.featuredImage.node.sourceUrl}
-                      alt={linkedProperty.title || propertyText}
-                      className="w-full h-48 object-cover rounded-xl"
-                    />
+                    {/* Featured Image - Large */}
+                    {linkedProperty?.featuredImage?.node?.sourceUrl && (
+                      <img
+                        src={linkedProperty.featuredImage.node.sourceUrl}
+                        alt={linkedProperty.title || propertyText}
+                        className="w-full h-48 object-cover rounded-xl mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(linkedProperty.featuredImage.node.sourceUrl, '_blank')}
+                      />
+                    )}
+                    {/* Gallery Images - Grid */}
+                    {linkedProperty?.galleryImages && linkedProperty.galleryImages.length > 0 && (
+                      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                        {linkedProperty.galleryImages.map((imgUrl: string, idx: number) => (
+                          <img
+                            key={idx}
+                            src={imgUrl}
+                            alt={`${linkedProperty.title || propertyText} - ${idx + 1}`}
+                            className="w-full h-20 md:h-24 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(imgUrl, '_blank')}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="w-full h-36 bg-[#e0ccb0] rounded-xl flex items-center justify-center mb-4">
