@@ -146,8 +146,8 @@ export default function DealsPage() {
     });
   }, [data, propertiesMap, leadsMap]);
 
-  // Apply data privacy filter - agents see only their data
-  const allDeals = useDataPrivacy<Deal>(rawDeals);
+  // Data is already filtered by agentId on the server
+  const allDeals = rawDeals;
 
   const [updateDeal] = useMutation(UPDATE_DEAL, {
     refetchQueries: ['GetDealsByStage', 'GetDashboardStats'],
