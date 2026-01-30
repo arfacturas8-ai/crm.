@@ -16,6 +16,8 @@ import {
   Users,
   ClipboardList,
   Settings,
+  FileText,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -32,8 +34,10 @@ const navigation = [
 
 const adminNavigation = [
   { name: 'Agentes', href: '/agentes', icon: UserCog },
-  { name: 'Panel Acción', href: '/panel-accion', icon: ClipboardList },
-  { name: 'Configuración', href: '/settings', icon: Settings },
+  { name: 'Panel Accion', href: '/panel-accion', icon: ClipboardList },
+  { name: 'Auditoria', href: '/admin/audit-logs', icon: FileText },
+  { name: 'Papelera', href: '/admin/deleted-records', icon: Trash2 },
+  { name: 'Configuracion', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {

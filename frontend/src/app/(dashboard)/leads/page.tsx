@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { Search, Upload, Filter, X } from 'lucide-react';
-import { GET_LEADS, DELETE_LEAD } from '@/graphql/queries/leads';
+import { Search, Upload, Filter, X, CheckSquare } from 'lucide-react';
+import { GET_LEADS, DELETE_LEAD, BULK_DELETE_LEADS } from '@/graphql/queries/leads';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -17,6 +17,7 @@ import { LeadTableRow } from '@/components/leads/LeadTableRow';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadDetail } from '@/components/leads/LeadDetail';
 import { ImportExportModal } from '@/components/leads/ImportExportModal';
+import { BulkActionsBar } from '@/components/leads/BulkActionsBar';
 import { useUIStore } from '@/store/ui-store';
 import { useAuthStore } from '@/store/auth-store';
 import { useDataPrivacy } from '@/hooks/useDataPrivacy';
@@ -32,6 +33,9 @@ export default function LeadsPage() {
   const [deleteConfirmLead, setDeleteConfirmLead] = useState<Lead | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   const { openModal, closeModal, addNotification } = useUIStore();
   const { hasMinimumRole, user, isAdmin, isModerator } = useAuthStore();
@@ -72,6 +76,30 @@ export default function LeadsPage() {
     },
   });
 
+  // Bulk delete mutation
+  const [bulkDeleteLeads, { loading: bulkDeleteLoading }] = useMutation(BULK_DELETE_LEADS, {
+    onCompleted: (data) => {
+      if (data?.bulkDelete?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Leads eliminados',
+          message: `${data.bulkDelete.deletedCount} leads movidos a la papelera (30 días para recuperar)`,
+        });
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+      }
+      setBulkDeleteConfirm(false);
+      refetch();
+    },
+    onError: (error) => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'No se pudieron eliminar los leads',
+      });
+    },
+  });
+
   const allLeads: Lead[] = data?.leads?.nodes || [];
   const leads = useDataPrivacy<Lead>(allLeads);
   const totalCount = leads.length;
@@ -105,16 +133,69 @@ export default function LeadsPage() {
     setShowFilters(false);
   };
 
+  // Selection handlers
+  const handleSelect = useCallback((lead: Lead, selected: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(lead.id);
+      } else {
+        next.delete(lead.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(leads.map((l) => l.id)));
+  }, [leads]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  }, []);
+
+  const handleBulkDelete = () => {
+    bulkDeleteLeads({
+      variables: {
+        input: {
+          entityType: 'lead',
+          ids: Array.from(selectedIds),
+        },
+      },
+    });
+  };
+
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
+  };
+
   const canDelete = hasMinimumRole('moderator');
 
   return (
     <div className="space-y-4 bg-white min-h-full">
       {/* Stats bar */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {totalCount} {totalCount === 1 ? 'lead' : 'leads'}
-          {hasActiveFilters && ' (filtrado)'}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-500">
+            {totalCount} {totalCount === 1 ? 'lead' : 'leads'}
+            {hasActiveFilters && ' (filtrado)'}
+          </p>
+          {canDelete && totalCount > 0 && (
+            <Button
+              variant={selectionMode ? 'primary' : 'ghost'}
+              size="sm"
+              onClick={toggleSelectionMode}
+              className="h-8 text-xs"
+            >
+              <CheckSquare size={14} className="mr-1" />
+              {selectionMode ? 'Cancelar' : 'Seleccionar'}
+            </Button>
+          )}
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -198,7 +279,10 @@ export default function LeadsPage() {
               onView={handleView}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              showDeleteButton={canDelete}
+              showDeleteButton={canDelete && !selectionMode}
+              selectable={selectionMode}
+              selected={selectedIds.has(lead.id)}
+              onSelect={handleSelect}
             />
           ))
         ) : (
@@ -214,6 +298,18 @@ export default function LeadsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
+                {selectionMode && (
+                  <th className="p-3 lg:p-4 w-12">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === leads.length && leads.length > 0}
+                        onChange={(e) => e.target.checked ? handleSelectAll() : handleClearSelection()}
+                        className="w-4 h-4 rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513] cursor-pointer"
+                      />
+                    </label>
+                  </th>
+                )}
                 <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nombre
                 </th>
@@ -237,9 +333,9 @@ export default function LeadsPage() {
             <tbody>
               {loading ? (
                 <>
-                  <TableRowSkeleton columns={6} />
-                  <TableRowSkeleton columns={6} />
-                  <TableRowSkeleton columns={6} />
+                  <TableRowSkeleton columns={selectionMode ? 7 : 6} />
+                  <TableRowSkeleton columns={selectionMode ? 7 : 6} />
+                  <TableRowSkeleton columns={selectionMode ? 7 : 6} />
                 </>
               ) : leads.length > 0 ? (
                 leads.map((lead) => (
@@ -249,12 +345,15 @@ export default function LeadsPage() {
                     onView={handleView}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
-                    showDeleteButton={canDelete}
+                    showDeleteButton={canDelete && !selectionMode}
+                    selectable={selectionMode}
+                    selected={selectedIds.has(lead.id)}
+                    onSelect={handleSelect}
                   />
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={selectionMode ? 7 : 6}>
                     <EmptyLeads onCreateClick={() => openModal('create-lead')} />
                   </td>
                 </tr>
@@ -321,6 +420,31 @@ export default function LeadsPage() {
           }}
         />
       )}
+
+      {/* Bulk Actions Bar */}
+      {selectionMode && selectedIds.size > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedIds.size}
+          totalCount={leads.length}
+          onSelectAll={handleSelectAll}
+          onClearSelection={handleClearSelection}
+          onBulkDelete={() => setBulkDeleteConfirm(true)}
+          isDeleting={bulkDeleteLoading}
+        />
+      )}
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={bulkDeleteConfirm}
+        title="Eliminar leads seleccionados"
+        message={`¿Estás seguro de que deseas eliminar ${selectedIds.size} ${selectedIds.size === 1 ? 'lead' : 'leads'}? Podrás recuperarlos en los próximos 30 días.`}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={bulkDeleteLoading}
+        onConfirm={handleBulkDelete}
+        onCancel={() => setBulkDeleteConfirm(false)}
+      />
     </div>
   );
 }

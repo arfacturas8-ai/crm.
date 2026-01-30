@@ -15,6 +15,9 @@ interface LeadCardProps {
   onEdit: (lead: Lead) => void;
   onDelete?: (lead: Lead) => void;
   showDeleteButton?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (lead: Lead, selected: boolean) => void;
 }
 
 export const LeadCard = memo(function LeadCard({
@@ -23,10 +26,23 @@ export const LeadCard = memo(function LeadCard({
   onEdit,
   onDelete,
   showDeleteButton = false,
+  selectable = false,
+  selected = false,
+  onSelect,
 }: LeadCardProps) {
   return (
-    <Card className="p-4 bg-white border-gray-200">
+    <Card className={`p-4 bg-white border-gray-200 transition-colors ${selected ? 'ring-2 ring-[#8B4513] bg-[#8B4513]/5' : ''}`}>
       <div className="flex items-start gap-3">
+        {selectable && (
+          <label className="flex items-center h-10 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => onSelect?.(lead, e.target.checked)}
+              className="w-5 h-5 rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513] cursor-pointer"
+            />
+          </label>
+        )}
         <div className="w-10 h-10 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0">
           <span className="text-[#8B4513] font-medium">
             {lead.name?.charAt(0).toUpperCase()}

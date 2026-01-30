@@ -14,6 +14,9 @@ interface LeadTableRowProps {
   onEdit: (lead: Lead) => void;
   onDelete?: (lead: Lead) => void;
   showDeleteButton?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (lead: Lead, selected: boolean) => void;
 }
 
 export const LeadTableRow = memo(function LeadTableRow({
@@ -22,9 +25,25 @@ export const LeadTableRow = memo(function LeadTableRow({
   onEdit,
   onDelete,
   showDeleteButton = false,
+  selectable = false,
+  selected = false,
+  onSelect,
 }: LeadTableRowProps) {
   return (
-    <tr className="border-b border-gray-50 hover:bg-gray-50">
+    <tr className={`border-b border-gray-50 hover:bg-gray-50 ${selected ? 'bg-[#8B4513]/5' : ''}`}>
+      {/* Checkbox */}
+      {selectable && (
+        <td className="p-3 lg:p-4 w-12">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => onSelect?.(lead, e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-[#8B4513] focus:ring-[#8B4513] cursor-pointer"
+            />
+          </label>
+        </td>
+      )}
       {/* Name */}
       <td className="p-3 lg:p-4">
         <div className="flex items-center gap-3">

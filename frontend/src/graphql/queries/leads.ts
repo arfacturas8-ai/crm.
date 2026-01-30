@@ -127,3 +127,15 @@ export const DELETE_LEAD = gql`
     }
   }
 `;
+
+// Bulk delete leads mutation
+export const BULK_DELETE_LEADS = gql`
+  mutation BulkDeleteLeads($input: BulkDeleteInput!) {
+    bulkDelete(input: $input) {
+      success
+      deletedCount
+      errors
+      clientMutationId
+    }
+  }
+`;
