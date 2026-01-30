@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Plus, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DealCard } from './DealCard';
@@ -24,7 +25,7 @@ interface KanbanColumnProps {
   onAddClick: () => void;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = memo(function KanbanColumn({
   id,
   label,
   color,
@@ -103,4 +104,4 @@ export function KanbanColumn({
       </div>
     </div>
   );
-}
+});

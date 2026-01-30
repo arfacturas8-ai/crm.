@@ -9,6 +9,7 @@ export { Input, Textarea } from './Input';
 export { Modal, ModalFooter } from './Modal';
 export { Notifications } from './Notifications';
 export { PropertySelector } from './PropertySelector';
+export { PullToRefresh } from './PullToRefresh';
 export { Select } from './Select';
 export {
   Skeleton,

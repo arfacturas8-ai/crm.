@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { MessageSquare, Mail, Eye, Edit, Trash2 } from 'lucide-react';
 import { Badge, getLeadStatusVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +16,7 @@ interface LeadTableRowProps {
   showDeleteButton?: boolean;
 }
 
-export function LeadTableRow({
+export const LeadTableRow = memo(function LeadTableRow({
   lead,
   onView,
   onEdit,
@@ -132,4 +133,4 @@ export function LeadTableRow({
       </td>
     </tr>
   );
-}
+});

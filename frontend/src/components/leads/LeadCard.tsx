@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { MessageSquare, Eye, Edit, Trash2 } from 'lucide-react';
 import { Badge, getLeadStatusVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -16,7 +17,7 @@ interface LeadCardProps {
   showDeleteButton?: boolean;
 }
 
-export function LeadCard({
+export const LeadCard = memo(function LeadCard({
   lead,
   onView,
   onEdit,
@@ -89,4 +90,4 @@ export function LeadCard({
       </div>
     </Card>
   );
-}
+});

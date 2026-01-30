@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import {
   GripVertical,
   Trash2,
@@ -20,7 +21,7 @@ interface DealCardProps {
   onDragEnd: () => void;
 }
 
-export function DealCard({
+export const DealCard = memo(function DealCard({
   deal,
   isDragging = false,
   onClick,
@@ -95,4 +96,4 @@ export function DealCard({
       </p>
     </div>
   );
-}
+});
