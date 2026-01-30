@@ -1,8 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// Hostinger SMTP Configuration
-const SMTP_CONFIG = {
+/**
+ * SMTP Configuration for HabitaCR Email System
+ *
+ * For the email system to work correctly, configure these environment variables:
+ *
+ * MAIN ACCOUNT (for system emails):
+ * - SMTP_HOST=smtp.hostinger.com
+ * - SMTP_PORT=465
+ * - SMTP_USER=info@habitacr.com
+ * - SMTP_PASSWORD=<your-password>
+ * - EMAIL_FROM="HabitaCR" <info@habitacr.com>
+ *
+ * AGENT-SPECIFIC ACCOUNTS:
+ * Each agent can have their own email configured:
+ * - SMTP_USER_<AGENT_ID>=agent1@habitacr.com
+ * - SMTP_PASSWORD_<AGENT_ID>=<agent1-password>
+ *
+ * Example for agent ID 5:
+ * - SMTP_USER_5=carlos@habitacr.com
+ * - SMTP_PASSWORD_5=<carlos-password>
+ */
+
+// Default SMTP Configuration (fallback)
+const DEFAULT_SMTP_CONFIG = {
   host: process.env.SMTP_HOST || 'smtp.hostinger.com',
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true, // Use SSL/TLS for port 465
@@ -11,6 +33,26 @@ const SMTP_CONFIG = {
     pass: process.env.SMTP_PASSWORD,
   },
 };
+
+// Get SMTP config for a specific agent
+function getAgentSmtpConfig(agentId?: string): typeof DEFAULT_SMTP_CONFIG {
+  if (!agentId) return DEFAULT_SMTP_CONFIG;
+
+  const agentUser = process.env[`SMTP_USER_${agentId}`];
+  const agentPass = process.env[`SMTP_PASSWORD_${agentId}`];
+
+  if (agentUser && agentPass) {
+    return {
+      ...DEFAULT_SMTP_CONFIG,
+      auth: {
+        user: agentUser,
+        pass: agentPass,
+      },
+    };
+  }
+
+  return DEFAULT_SMTP_CONFIG;
+}
 
 // Email template with HabitaCR branding
 function getEmailTemplate(body: string, subject: string): string {
@@ -69,7 +111,7 @@ function getEmailTemplate(body: string, subject: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { to, subject, body: emailBody, html, text, from, replyTo, leadId } = body;
+    const { to, subject, body: emailBody, html, text, from, replyTo, leadId, agentId } = body;
 
     // Validate required fields
     if (!to || !subject || (!html && !text && !emailBody)) {
@@ -79,17 +121,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get SMTP config (agent-specific if provided, otherwise default)
+    const smtpConfig = getAgentSmtpConfig(agentId);
+
     // Check for SMTP password
-    if (!SMTP_CONFIG.auth.pass) {
-      console.error('SMTP_PASSWORD environment variable not set');
+    if (!smtpConfig.auth.pass) {
+      console.error('SMTP_PASSWORD environment variable not set for', agentId || 'default');
       return NextResponse.json(
         { success: false, error: 'Email service not configured' },
         { status: 500 }
       );
     }
 
-    // Create transporter with Hostinger settings
-    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+    // Create transporter with appropriate settings
+    const transporter = nodemailer.createTransport(smtpConfig);
 
     // Verify connection
     try {
@@ -106,14 +151,18 @@ export async function POST(request: NextRequest) {
     const emailHtml = html || getEmailTemplate(emailBody || text, subject);
     const emailText = text || emailBody;
 
+    // Determine the from address (use agent's email if configured)
+    const fromAddress = from || `"HabitaCR" <${smtpConfig.auth.user}>`;
+    const replyToAddress = replyTo || smtpConfig.auth.user;
+
     // Send email
     const info = await transporter.sendMail({
-      from: from || process.env.EMAIL_FROM || '"HabitaCR" <info@habitacr.com>',
+      from: fromAddress,
       to,
       subject,
       html: emailHtml,
       text: emailText,
-      replyTo: replyTo || 'info@habitacr.com',
+      replyTo: replyToAddress,
     });
 
     console.log('Email sent successfully:', info.messageId);

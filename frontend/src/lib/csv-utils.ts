@@ -1,7 +1,9 @@
 /**
  * CSV/Excel Import/Export utilities for CRM
+ * Supports both CSV and XLSX formats
  */
 
+import * as XLSX from 'xlsx';
 import { Lead, LeadSource } from '@/types';
 
 // Template columns for leads import
@@ -225,3 +227,140 @@ export function readFileAsText(file: File): Promise<string> {
     reader.readAsText(file);
   });
 }
+
+/**
+ * Read file as ArrayBuffer (for XLSX)
+ */
+export function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+    reader.onerror = (e) => reject(e);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/**
+ * Parse XLSX file content to array of objects
+ */
+export function parseXLSX(buffer: ArrayBuffer): Record<string, string>[] {
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+
+  // Convert to JSON with headers
+  const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, {
+    defval: '',
+    raw: false,
+  });
+
+  // Normalize headers to lowercase
+  return rawData.map((row) => {
+    const normalizedRow: Record<string, string> = {};
+    Object.entries(row).forEach(([key, value]) => {
+      normalizedRow[key.toLowerCase().trim()] = String(value || '').trim();
+    });
+    return normalizedRow;
+  });
+}
+
+/**
+ * Generate XLSX content from leads
+ */
+export function leadsToXLSX(leads: Lead[]): ArrayBuffer {
+  const headers = [
+    'Nombre',
+    'Email',
+    'Telefono',
+    'Fuente',
+    'Mensaje',
+    'Estado',
+    'Fecha Creacion',
+  ];
+
+  const rows = leads.map((lead) => ({
+    'Nombre': lead.name,
+    'Email': lead.email,
+    'Telefono': lead.mobile,
+    'Fuente': getSourceLabel(lead.source),
+    'Mensaje': lead.message || '',
+    'Estado': getStatusLabel(lead.status),
+    'Fecha Creacion': new Date(lead.createdAt).toLocaleDateString('es-CR'),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
+
+  // Set column widths
+  worksheet['!cols'] = [
+    { wch: 25 }, // Nombre
+    { wch: 30 }, // Email
+    { wch: 15 }, // Telefono
+    { wch: 15 }, // Fuente
+    { wch: 40 }, // Mensaje
+    { wch: 12 }, // Estado
+    { wch: 15 }, // Fecha
+  ];
+
+  return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+}
+
+/**
+ * Generate XLSX template for import
+ */
+export function generateLeadTemplateXLSX(): ArrayBuffer {
+  const headers = ['Nombre', 'Email', 'Telefono', 'Fuente', 'Mensaje', 'Estado'];
+  const exampleRow = {
+    'Nombre': 'Juan Perez',
+    'Email': 'juan@email.com',
+    'Telefono': '88887777',
+    'Fuente': 'WhatsApp',
+    'Mensaje': 'Interesado en casa en Escazu',
+    'Estado': 'Nuevo',
+  };
+
+  const worksheet = XLSX.utils.json_to_sheet([exampleRow], { header: headers });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Plantilla');
+
+  worksheet['!cols'] = [
+    { wch: 25 },
+    { wch: 30 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 40 },
+    { wch: 12 },
+  ];
+
+  return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+}
+
+/**
+ * Download ArrayBuffer as file
+ */
+export function downloadArrayBuffer(
+  buffer: ArrayBuffer,
+  filename: string,
+  mimeType: string = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+): void {
+  const blob = new Blob([buffer], { type: mimeType });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+/**
+ * Detect file type from extension
+ */
+export function getFileType(filename: string): 'csv' | 'xlsx' | 'unknown' {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  if (ext === 'csv' || ext === 'txt') return 'csv';
+  if (ext === 'xlsx' || ext === 'xls') return 'xlsx';
+  return 'unknown';
+}
+
+// Re-export internal functions for XLSX
+export { getSourceLabel, getStatusLabel };

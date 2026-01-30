@@ -18,62 +18,39 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useUIStore } from '@/store/ui-store';
+import { useAuthStore } from '@/store/auth-store';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { type Deal } from '@/types';
 import { DealForm } from '@/components/deals/DealForm';
 import { DealDetail } from '@/components/deals/DealDetail';
 
-// Pipeline tabs
-type PipelineTab = 'potencial' | 'seguimiento' | 'venta';
-
-// All 8 preset stages - same for all pipelines
+// All stages for the single pipeline view
 const ALL_STAGES = [
   { id: 'nuevo', label: 'Nuevo', color: 'bg-blue-500' },
   { id: 'contactado', label: 'Contactado', color: 'bg-[#8B4513]' },
   { id: 'visita-programada', label: 'Visita Programada', color: 'bg-[#a0522d]' },
   { id: 'seguimiento', label: 'Seguimiento', color: 'bg-[#cd853f]' },
+  { id: 'potencial', label: 'Potencial', color: 'bg-amber-500' },
   { id: 'reserva', label: 'Reserva', color: 'bg-purple-500' },
   { id: 'formalizado', label: 'Formalizado', color: 'bg-indigo-500' },
   { id: 'descartado', label: 'Descartado', color: 'bg-gray-400' },
-  { id: 'ganado', label: 'Ganado', color: 'bg-green-600' },
 ];
 
-// Same stages for all pipelines
-const PRESET_STAGES = {
-  potencial: ALL_STAGES,
-  seguimiento: ALL_STAGES,
-  venta: ALL_STAGES,
-};
-
-// Map deal stages to pipeline tabs
-const getStagePipeline = (stage: string): PipelineTab => {
-  const lowerStage = stage?.toLowerCase().replace(/\s+/g, '-') || '';
-  // Potencial: early stages
-  if (['nuevo', 'contactado', 'visita-programada', 'new', 'contacted'].includes(lowerStage)) {
-    return 'potencial';
-  }
-  // Seguimiento: active follow-up
-  if (['seguimiento', 'reserva', 'follow-up', 'reservation'].includes(lowerStage)) {
-    return 'seguimiento';
-  }
-  // Venta: closing stages
-  if (['formalizado', 'ganado', 'descartado', 'formalized', 'won', 'closed', 'lost'].includes(lowerStage)) {
-    return 'venta';
-  }
-  return 'potencial'; // Default
-};
-
 export default function DealsPage() {
-  const [activeTab, setActiveTab] = useState<PipelineTab>('potencial');
   const [globalSearch, setGlobalSearch] = useState('');
-  const [tabSearch, setTabSearch] = useState('');
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
   const { openModal, closeModal, addNotification } = useUIStore();
+  const { user, isAdmin, isModerator } = useAuthStore();
 
-  const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE);
+  // Get agentId for filtering - agents only see their own deals
+  const agentIdForQuery = (!isAdmin() && !isModerator() && user?.id) ? String(user.id) : undefined;
+
+  const { data, loading, refetch } = useQuery(GET_DEALS_BY_STAGE, {
+    variables: { agentId: agentIdForQuery },
+  });
 
   // Map deals with normalized stage field
   const rawDeals: Deal[] = useMemo(() => {
@@ -109,7 +86,7 @@ export default function DealsPage() {
   });
 
   // Global search filter
-  const globalFilteredDeals = useMemo(() => {
+  const filteredDeals = useMemo(() => {
     if (!globalSearch) return allDeals;
     const searchLower = globalSearch.toLowerCase();
     return allDeals.filter((deal) => {
@@ -124,44 +101,25 @@ export default function DealsPage() {
     });
   }, [allDeals, globalSearch]);
 
-  // Filter deals by active tab and tab search
-  const tabFilteredDeals = useMemo(() => {
-    let deals = globalFilteredDeals.filter((deal) => getStagePipeline(deal.stage || '') === activeTab);
-
-    if (tabSearch) {
-      const searchLower = tabSearch.toLowerCase();
-      deals = deals.filter((deal) => {
-        const nameMatch = deal.contactName?.toLowerCase().includes(searchLower);
-        const buscaMatch = deal.busca?.toLowerCase().includes(searchLower);
-        const stageMatch = deal.stage?.toLowerCase().includes(searchLower);
-        return nameMatch || buscaMatch || stageMatch;
-      });
-    }
-
-    return deals;
-  }, [globalFilteredDeals, activeTab, tabSearch]);
-
   // Group deals by stage for Kanban
   const dealsByStage = useMemo(() => {
-    const stages = PRESET_STAGES[activeTab];
     const grouped: Record<string, Deal[]> = {};
-    stages.forEach((stage) => {
+    ALL_STAGES.forEach((stage) => {
       grouped[stage.id] = [];
     });
 
-    tabFilteredDeals.forEach((deal) => {
+    filteredDeals.forEach((deal) => {
       const normalizedStage = deal.stage?.toLowerCase().replace(/\s+/g, '-') || 'nuevo';
       if (grouped[normalizedStage]) {
         grouped[normalizedStage].push(deal);
       } else {
         // Put in first stage if not found
-        const firstStage = stages[0].id;
-        grouped[firstStage]?.push(deal);
+        grouped['nuevo']?.push(deal);
       }
     });
 
     return grouped;
-  }, [tabFilteredDeals, activeTab]);
+  }, [filteredDeals]);
 
   // Stage counts
   const stageCounts = useMemo(() => {
@@ -171,15 +129,6 @@ export default function DealsPage() {
     });
     return counts;
   }, [dealsByStage]);
-
-  // Tab counts
-  const tabCounts = useMemo(() => {
-    return {
-      potencial: globalFilteredDeals.filter((d) => getStagePipeline(d.stage || '') === 'potencial').length,
-      seguimiento: globalFilteredDeals.filter((d) => getStagePipeline(d.stage || '') === 'seguimiento').length,
-      venta: globalFilteredDeals.filter((d) => getStagePipeline(d.stage || '') === 'venta').length,
-    };
-  }, [globalFilteredDeals]);
 
   // Drag handlers
   const handleDragStart = (deal: Deal) => setDraggedDeal(deal);
@@ -208,95 +157,40 @@ export default function DealsPage() {
     }
   };
 
-  const stages = PRESET_STAGES[activeTab];
-
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Seguimiento</h1>
-          <p className="text-gray-500 text-sm">
-            {allDeals.length} registros en seguimiento
-          </p>
+    <div className="h-full flex flex-col bg-white overflow-hidden">
+      {/* Fixed Header Section */}
+      <div className="flex-shrink-0">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Seguimiento</h1>
+            <p className="text-gray-500 text-sm">
+              {allDeals.length} registros en seguimiento
+            </p>
+          </div>
+          <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-deal')}>
+            Nuevo Seguimiento
+          </Button>
         </div>
-        <Button leftIcon={<Plus size={16} />} onClick={() => openModal('create-deal')}>
-          Nuevo Seguimiento
-        </Button>
+
+        {/* Global Search */}
+        <Card className="p-3 mb-4 bg-white border-gray-200">
+          <Input
+            placeholder="Buscar en todo: nombre, notas, propiedad, monto, teléfono, email, etiqueta..."
+            leftIcon={<Search size={16} />}
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            className="bg-white border-gray-200"
+          />
+        </Card>
+
       </div>
 
-      {/* Global Search */}
-      <Card className="p-3 mb-4 bg-white border-gray-200">
-        <Input
-          placeholder="Buscar en todo: nombre, notas, propiedad, monto, teléfono, email, etiqueta..."
-          leftIcon={<Search size={16} />}
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          className="bg-white border-gray-200"
-        />
-      </Card>
-
-      {/* Pipeline Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-gray-200">
-        <button
-          onClick={() => { setActiveTab('potencial'); setTabSearch(''); }}
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'potencial'
-              ? 'text-[#8B4513] border-[#8B4513]'
-              : 'text-gray-500 border-transparent hover:text-gray-700'
-          )}
-        >
-          Potencial
-          <span className="ml-2 px-2 py-0.5 text-xs bg-[#8B4513]/10 text-[#8B4513] rounded-full">
-            {tabCounts.potencial}
-          </span>
-        </button>
-        <button
-          onClick={() => { setActiveTab('seguimiento'); setTabSearch(''); }}
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'seguimiento'
-              ? 'text-[#8B4513] border-[#8B4513]'
-              : 'text-gray-500 border-transparent hover:text-gray-700'
-          )}
-        >
-          Seguimiento
-          <span className="ml-2 px-2 py-0.5 text-xs bg-[#8B4513]/10 text-[#8B4513] rounded-full">
-            {tabCounts.seguimiento}
-          </span>
-        </button>
-        <button
-          onClick={() => { setActiveTab('venta'); setTabSearch(''); }}
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'venta'
-              ? 'text-[#8B4513] border-[#8B4513]'
-              : 'text-gray-500 border-transparent hover:text-gray-700'
-          )}
-        >
-          Venta
-          <span className="ml-2 px-2 py-0.5 text-xs bg-[#8B4513]/10 text-[#8B4513] rounded-full">
-            {tabCounts.venta}
-          </span>
-        </button>
-      </div>
-
-      {/* Tab Search */}
-      <div className="mb-4">
-        <Input
-          placeholder={`Buscar en ${activeTab === 'potencial' ? 'Potencial' : activeTab === 'seguimiento' ? 'Seguimiento' : 'Venta'}...`}
-          leftIcon={<Search size={14} />}
-          value={tabSearch}
-          onChange={(e) => setTabSearch(e.target.value)}
-          className="max-w-xs bg-white border-gray-200 text-sm"
-        />
-      </div>
-
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden -mx-4 px-4 lg:-mx-6 lg:px-6">
+      {/* Kanban Board - Scrollable Content */}
+      <div className="flex-1 overflow-x-auto overflow-y-auto -mx-4 px-4 lg:-mx-6 lg:px-6">
         <div className="flex gap-3 pb-4 min-w-max">
-          {stages.map((stage) => {
+          {ALL_STAGES.map((stage) => {
             const deals = dealsByStage[stage.id] || [];
             const isDropTarget = dragOverColumn === stage.id;
 

@@ -14,7 +14,10 @@ import {
   Copy,
   ExternalLink,
   X,
+  QrCode,
+  Smartphone,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
@@ -58,6 +61,7 @@ export default function CalendarioPage() {
   const [outlookConnected, setOutlookConnected] = useState(false);
   const [outlookUrlInput, setOutlookUrlInput] = useState('');
   const [copiedFeed, setCopiedFeed] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
 
   // Event creation
   const [eventType, setEventType] = useState<'general' | 'personal'>('personal');
@@ -453,13 +457,45 @@ export default function CalendarioPage() {
                   {copiedFeed ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
                   <span className="ml-1 text-xs">{copiedFeed ? 'Copiado' : 'Copiar'}</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowQRCode(!showQRCode)}
+                  className={cn('border-gray-200 shrink-0', showQRCode && 'bg-[#8B4513]/10')}
+                >
+                  <QrCode size={14} />
+                  <span className="ml-1 text-xs">QR</span>
+                </Button>
               </div>
+
+              {/* QR Code for mobile subscription */}
+              {showQRCode && generalFeedUrl && (
+                <div className="mb-4 p-4 bg-white border border-gray-200 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <Smartphone size={16} className="text-[#8B4513]" />
+                    <span className="text-sm font-medium text-gray-700">Escanea con tu telefono</span>
+                  </div>
+                  <div className="inline-block p-3 bg-white rounded-lg shadow-sm border border-gray-100">
+                    <QRCodeSVG
+                      value={generalFeedUrl}
+                      size={160}
+                      level="M"
+                      includeMargin={true}
+                      fgColor="#8B4513"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Escanea este codigo QR desde tu Outlook movil para suscribirte a la agenda general del equipo.
+                  </p>
+                </div>
+              )}
+
               <details className="text-xs text-gray-500">
                 <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
                   ¿Cómo suscribirse en Outlook?
                 </summary>
                 <ol className="mt-2 space-y-1 list-decimal list-inside">
-                  <li>Copie la URL de arriba</li>
+                  <li>Copie la URL de arriba o escanee el codigo QR</li>
                   <li>En <strong>Outlook</strong>, vaya a <strong>Calendario</strong></li>
                   <li>Click <strong>&quot;Agregar calendario&quot;</strong> &gt; <strong>&quot;Desde Internet&quot;</strong></li>
                   <li>Pegue la URL y click <strong>&quot;Aceptar&quot;</strong></li>

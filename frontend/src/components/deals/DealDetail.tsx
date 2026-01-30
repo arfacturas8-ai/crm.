@@ -68,15 +68,16 @@ const STAGE_LABELS: Record<string, string> = {
   contactado: 'Contactado',
   'visita-programada': 'Visita Programada',
   seguimiento: 'Seguimiento',
+  potencial: 'Potencial',
   reserva: 'Reserva',
   formalizado: 'Formalizado',
   descartado: 'Descartado',
-  ganado: 'Ganado',
   // Legacy stages
   initial_contact: 'Contacto Inicial',
   qualified: 'Calificado',
   proposal: 'Propuesta',
   negotiation: 'Negociación',
+  ganado: 'Ganado', // Legacy only
   closed_won: 'Ganado',
   closed_lost: 'Perdido',
   active: 'Activo',
@@ -94,8 +95,25 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
   const [editProximoPaso, setEditProximoPaso] = useState(deal.proximoPaso || '');
   const [editDetalles, setEditDetalles] = useState(deal.detalles || '');
   const [newNote, setNewNote] = useState('');
+  const [noteColor, setNoteColor] = useState<string>('default');
+  const [notesViewMode, setNotesViewMode] = useState<'list' | 'timeline'>('timeline');
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [savingProperty, setSavingProperty] = useState(false);
+
+  // Note color options
+  const NOTE_COLORS = [
+    { id: 'default', label: 'Default', bg: 'bg-[#faf5f0]', border: 'border-[#e0ccb0]' },
+    { id: 'yellow', label: 'Amarillo', bg: 'bg-yellow-50', border: 'border-yellow-200' },
+    { id: 'green', label: 'Verde', bg: 'bg-green-50', border: 'border-green-200' },
+    { id: 'blue', label: 'Azul', bg: 'bg-blue-50', border: 'border-blue-200' },
+    { id: 'red', label: 'Rojo', bg: 'bg-red-50', border: 'border-red-200' },
+    { id: 'purple', label: 'Morado', bg: 'bg-purple-50', border: 'border-purple-200' },
+  ];
+
+  const getNoteColorClasses = (color?: string) => {
+    const colorObj = NOTE_COLORS.find(c => c.id === color) || NOTE_COLORS[0];
+    return `${colorObj.bg} ${colorObj.border}`;
+  };
 
   // Fetch full deal details
   const { data, loading, refetch } = useQuery(GET_DEAL, {
@@ -646,6 +664,7 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
         {/* Notes Tab */}
         {activeTab === 'notes' && (
           <div className="space-y-6">
+            {/* Add Note Card */}
             <Card className="p-5 border-[#e0ccb0]">
               <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
                 Agregar Nota
@@ -657,6 +676,22 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                 rows={4}
                 className="w-full p-3 border border-[#e0ccb0] rounded-lg focus:ring-2 focus:ring-[#8B4513] focus:border-transparent resize-none"
               />
+              {/* Color Picker */}
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-xs text-gray-500">Color:</span>
+                <div className="flex gap-1">
+                  {NOTE_COLORS.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => setNoteColor(color.id)}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${color.bg} ${
+                        noteColor === color.id ? 'ring-2 ring-[#8B4513] ring-offset-1' : 'border-gray-200'
+                      }`}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+              </div>
               <div className="flex justify-end mt-3">
                 <Button disabled={!newNote} className="bg-[#8B4513] hover:bg-[#6b350f] text-white">
                   <Plus size={16} className="mr-2" />
@@ -665,21 +700,86 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
               </div>
             </Card>
 
+            {/* Notes Display Card */}
             <Card className="p-5 border-[#e0ccb0]">
-              <h3 className="font-semibold text-sm text-[#8B4513] mb-4 uppercase tracking-wide">
-                Notas
-              </h3>
-              {notes.length > 0 ? (
-                <div className="space-y-3">
-                  {notes.map((note: any) => (
-                    <div key={note.id} className="p-4 bg-[#faf5f0] rounded-lg">
-                      <p className="text-black whitespace-pre-wrap">{note.content}</p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {note.authorName} - {formatDate(note.createdAt)}
-                      </p>
-                    </div>
-                  ))}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm text-[#8B4513] uppercase tracking-wide">
+                  Notas ({notes.length})
+                </h3>
+                {/* View Toggle */}
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setNotesViewMode('timeline')}
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
+                      notesViewMode === 'timeline' ? 'bg-white shadow text-[#8B4513]' : 'text-gray-500'
+                    }`}
+                  >
+                    Timeline
+                  </button>
+                  <button
+                    onClick={() => setNotesViewMode('list')}
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
+                      notesViewMode === 'list' ? 'bg-white shadow text-[#8B4513]' : 'text-gray-500'
+                    }`}
+                  >
+                    Lista
+                  </button>
                 </div>
+              </div>
+
+              {notes.length > 0 ? (
+                notesViewMode === 'timeline' ? (
+                  /* Timeline View - Bubble Style */
+                  <div className="relative">
+                    {/* Timeline Line */}
+                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-[#e0ccb0]" />
+
+                    <div className="space-y-4">
+                      {notes.map((note: any, index: number) => (
+                        <div key={note.id} className="relative flex gap-4">
+                          {/* Timeline Dot */}
+                          <div className="relative z-10 flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#8B4513] flex items-center justify-center text-white text-xs font-bold">
+                              {note.authorName?.charAt(0).toUpperCase() || 'N'}
+                            </div>
+                          </div>
+
+                          {/* Note Bubble */}
+                          <div className="flex-1 pb-4">
+                            <div className={`relative p-4 rounded-xl border ${getNoteColorClasses(note.color)}`}>
+                              {/* Speech bubble arrow */}
+                              <div className={`absolute left-[-8px] top-3 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 ${
+                                note.color === 'yellow' ? 'border-r-yellow-50' :
+                                note.color === 'green' ? 'border-r-green-50' :
+                                note.color === 'blue' ? 'border-r-blue-50' :
+                                note.color === 'red' ? 'border-r-red-50' :
+                                note.color === 'purple' ? 'border-r-purple-50' :
+                                'border-r-[#faf5f0]'
+                              }`} />
+                              <p className="text-black whitespace-pre-wrap text-sm">{note.content}</p>
+                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
+                                <span className="text-xs font-medium text-[#8B4513]">{note.authorName}</span>
+                                <span className="text-xs text-gray-400">{formatDate(note.createdAt)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* List View */
+                  <div className="space-y-3">
+                    {notes.map((note: any) => (
+                      <div key={note.id} className={`p-4 rounded-lg border ${getNoteColorClasses(note.color)}`}>
+                        <p className="text-black whitespace-pre-wrap">{note.content}</p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {note.authorName} - {formatDate(note.createdAt)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )
               ) : (
                 <div className="text-center py-8">
                   <FileText size={40} className="mx-auto text-gray-300 mb-3" />
@@ -709,10 +809,10 @@ export function DealDetail({ deal, onClose }: DealDetailProps) {
                   <option value="contactado">Contactado</option>
                   <option value="visita-programada">Visita Programada</option>
                   <option value="seguimiento">Seguimiento</option>
+                  <option value="potencial">Potencial</option>
                   <option value="reserva">Reserva</option>
                   <option value="formalizado">Formalizado</option>
                   <option value="descartado">Descartado</option>
-                  <option value="ganado">Ganado</option>
                 </select>
               </div>
               <div>

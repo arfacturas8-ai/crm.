@@ -14,6 +14,8 @@ import {
   Calendar,
   UserCog,
   Home,
+  Users,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -23,12 +25,14 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Nuevo', href: '/leads', icon: UserPlus },
   { name: 'Seguimiento', href: '/deals', icon: Kanban },
+  { name: 'Panel Agentes', href: '/panel-agentes', icon: Users },
   { name: 'Calendario', href: '/calendario', icon: Calendar },
   { name: 'Propietario', href: '/propietario', icon: Home },
 ];
 
 const adminNavigation = [
   { name: 'Agentes', href: '/agentes', icon: UserCog },
+  { name: 'Panel Accion', href: '/panel-accion', icon: ClipboardList },
 ];
 
 export function Sidebar() {

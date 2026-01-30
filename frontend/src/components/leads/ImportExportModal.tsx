@@ -16,11 +16,17 @@ import { Card } from '@/components/ui/Card';
 import { CREATE_LEAD } from '@/graphql/queries/leads';
 import {
   parseCSV,
+  parseXLSX,
   csvToLeads,
   leadsToCSV,
+  leadsToXLSX,
   generateLeadTemplate,
+  generateLeadTemplateXLSX,
   downloadFile,
+  downloadArrayBuffer,
   readFileAsText,
+  readFileAsArrayBuffer,
+  getFileType,
 } from '@/lib/csv-utils';
 import { Lead } from '@/types';
 import { cn } from '@/lib/utils';
@@ -32,6 +38,7 @@ interface ImportExportModalProps {
 }
 
 type TabType = 'import' | 'export';
+type ExportFormat = 'csv' | 'xlsx';
 
 interface ImportResult {
   success: number;
@@ -49,6 +56,7 @@ export function ImportExportModal({
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [previewData, setPreviewData] = useState<Partial<Lead>[] | null>(null);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('xlsx');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [createLead] = useMutation(CREATE_LEAD);
@@ -62,8 +70,17 @@ export function ImportExportModal({
     setImportResult(null);
 
     try {
-      const content = await readFileAsText(selectedFile);
-      const parsedData = parseCSV(content);
+      const fileType = getFileType(selectedFile.name);
+      let parsedData: Record<string, string>[];
+
+      if (fileType === 'xlsx') {
+        const buffer = await readFileAsArrayBuffer(selectedFile);
+        parsedData = parseXLSX(buffer);
+      } else {
+        const content = await readFileAsText(selectedFile);
+        parsedData = parseCSV(content);
+      }
+
       const leads = csvToLeads(parsedData);
       setPreviewData(leads.slice(0, 5)); // Show first 5 rows
     } catch (error) {
@@ -80,8 +97,17 @@ export function ImportExportModal({
     const result: ImportResult = { success: 0, failed: 0, errors: [] };
 
     try {
-      const content = await readFileAsText(file);
-      const parsedData = parseCSV(content);
+      const fileType = getFileType(file.name);
+      let parsedData: Record<string, string>[];
+
+      if (fileType === 'xlsx') {
+        const buffer = await readFileAsArrayBuffer(file);
+        parsedData = parseXLSX(buffer);
+      } else {
+        const content = await readFileAsText(file);
+        parsedData = parseCSV(content);
+      }
+
       const leadsToImport = csvToLeads(parsedData);
 
       for (const lead of leadsToImport) {
@@ -124,15 +150,25 @@ export function ImportExportModal({
 
   // Handle export
   const handleExport = () => {
-    const csv = leadsToCSV(leads);
     const date = new Date().toISOString().split('T')[0];
-    downloadFile(csv, `leads_habitacr_${date}.csv`);
+    if (exportFormat === 'xlsx') {
+      const buffer = leadsToXLSX(leads);
+      downloadArrayBuffer(buffer, `leads_habitacr_${date}.xlsx`);
+    } else {
+      const csv = leadsToCSV(leads);
+      downloadFile(csv, `leads_habitacr_${date}.csv`);
+    }
   };
 
   // Handle template download
-  const handleDownloadTemplate = () => {
-    const template = generateLeadTemplate();
-    downloadFile(template, 'plantilla_leads_habitacr.csv');
+  const handleDownloadTemplate = (format: ExportFormat) => {
+    if (format === 'xlsx') {
+      const buffer = generateLeadTemplateXLSX();
+      downloadArrayBuffer(buffer, 'plantilla_leads_habitacr.xlsx');
+    } else {
+      const template = generateLeadTemplate();
+      downloadFile(template, 'plantilla_leads_habitacr.csv');
+    }
   };
 
   return (
@@ -199,15 +235,26 @@ export function ImportExportModal({
                       Usa nuestra plantilla para asegurar que tus datos se
                       importen correctamente.
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 border-blue-300 text-blue-700 hover:bg-blue-100"
-                      onClick={handleDownloadTemplate}
-                    >
-                      <FileDown size={14} className="mr-2" />
-                      Descargar Plantilla CSV
-                    </Button>
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                        onClick={() => handleDownloadTemplate('xlsx')}
+                      >
+                        <FileDown size={14} className="mr-2" />
+                        Excel (.xlsx)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                        onClick={() => handleDownloadTemplate('csv')}
+                      >
+                        <FileDown size={14} className="mr-2" />
+                        CSV
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -220,7 +267,7 @@ export function ImportExportModal({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.txt"
+                  accept=".csv,.txt,.xlsx,.xls"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -234,10 +281,10 @@ export function ImportExportModal({
                   ) : (
                     <>
                       <p className="text-gray-600">
-                        Arrastra un archivo CSV o haz clic para seleccionar
+                        Arrastra un archivo o haz clic para seleccionar
                       </p>
                       <p className="text-sm text-gray-400 mt-1">
-                        Formatos soportados: CSV
+                        Formatos soportados: CSV, XLSX (Excel)
                       </p>
                     </>
                   )}
@@ -354,11 +401,49 @@ export function ImportExportModal({
                       Exportar {leads.length} leads
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
-                      Se exportaran todos los leads actuales en formato CSV.
-                      Puedes abrir el archivo en Excel, Google Sheets u otra
-                      aplicacion de hojas de calculo.
+                      Se exportaran todos los leads actuales. Selecciona el
+                      formato que prefieras.
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Format selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Formato de exportacion
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setExportFormat('xlsx')}
+                    className={cn(
+                      'flex-1 flex items-center justify-center gap-2 p-3 border rounded-lg transition-colors',
+                      exportFormat === 'xlsx'
+                        ? 'border-[#8B4513] bg-[#8B4513]/5 text-[#8B4513]'
+                        : 'border-gray-200 hover:border-gray-300'
+                    )}
+                  >
+                    <FileSpreadsheet size={20} />
+                    <div className="text-left">
+                      <p className="font-medium">Excel (.xlsx)</p>
+                      <p className="text-xs text-gray-500">Recomendado</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setExportFormat('csv')}
+                    className={cn(
+                      'flex-1 flex items-center justify-center gap-2 p-3 border rounded-lg transition-colors',
+                      exportFormat === 'csv'
+                        ? 'border-[#8B4513] bg-[#8B4513]/5 text-[#8B4513]'
+                        : 'border-gray-200 hover:border-gray-300'
+                    )}
+                  >
+                    <FileSpreadsheet size={20} />
+                    <div className="text-left">
+                      <p className="font-medium">CSV</p>
+                      <p className="text-xs text-gray-500">Compatible universal</p>
+                    </div>
+                  </button>
                 </div>
               </div>
 
@@ -390,7 +475,7 @@ export function ImportExportModal({
               {/* Export button */}
               <Button onClick={handleExport} className="w-full">
                 <Download size={16} className="mr-2" />
-                Descargar CSV
+                Descargar {exportFormat === 'xlsx' ? 'Excel' : 'CSV'}
               </Button>
             </div>
           )}

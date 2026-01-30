@@ -11,6 +11,8 @@ export const LEAD_FRAGMENT = gql`
     message
     status
     propertyId
+    agentId
+    agentName
     createdAt
     updatedAt
   }
@@ -24,6 +26,7 @@ export const GET_LEADS = gql`
     $status: String
     $source: String
     $search: String
+    $agentId: ID
   ) {
     leads(
       first: $first
@@ -31,6 +34,7 @@ export const GET_LEADS = gql`
       status: $status
       source: $source
       search: $search
+      agentId: $agentId
     ) {
       nodes {
         id
@@ -41,6 +45,8 @@ export const GET_LEADS = gql`
         message
         status
         propertyId
+        agentId
+        agentName
         createdAt
         updatedAt
       }
