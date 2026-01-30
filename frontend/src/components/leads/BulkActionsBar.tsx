@@ -56,7 +56,7 @@ export function BulkActionsBar({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="danger"
+            variant="destructive"
             size="sm"
             onClick={onBulkDelete}
             isLoading={isDeleting}
