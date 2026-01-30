@@ -289,3 +289,186 @@
     @apply fixed inset-0 bg-black/50 z-40;
   }
 }
+
+/* ============================================
+   MOBILE OPTIMIZATIONS
+   ============================================ */
+
+/* Touch targets - minimum 44px as per Apple/Google guidelines */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Safe area padding for notched devices (iPhone X+, etc) */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile slide-up animation for bottom sheets */
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile bottom navigation */
+.mobile-nav {
+  @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-nav-item {
+  @apply flex flex-col items-center justify-center py-2 px-3 text-gray-500 transition-colors;
+  min-height: 56px;
+}
+
+.mobile-nav-item.active {
+  @apply text-[#8B4513];
+}
+
+.mobile-nav-item:active {
+  @apply bg-gray-100;
+}
+
+/* Better touch scrolling */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Prevent pull-to-refresh when scrolling content */
+.no-pull-refresh {
+  overscroll-behavior-y: contain;
+}
+
+/* Mobile card styles - edge to edge */
+@media (max-width: 640px) {
+  .mobile-card {
+    @apply mx-0 rounded-none border-x-0;
+  }
+
+  .mobile-full-width {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Larger inputs on mobile for better touch and prevent iOS zoom */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  .input, .select {
+    @apply h-12;
+  }
+
+  .textarea {
+    @apply min-h-[100px];
+  }
+
+  .btn {
+    @apply h-12 px-4;
+  }
+
+  .btn-sm {
+    @apply h-10 px-3;
+  }
+
+  .btn-icon {
+    @apply h-11 w-11;
+  }
+
+  /* Larger touch targets for action buttons */
+  .btn-ghost.btn-icon {
+    @apply h-10 w-10;
+  }
+}
+
+/* Mobile-optimized kanban */
+@media (max-width: 768px) {
+  .kanban-column {
+    @apply min-w-[280px];
+    max-width: 85vw;
+  }
+
+  .kanban-card {
+    @apply p-3;
+  }
+}
+
+/* Active states for touch feedback */
+@media (hover: none) {
+  .btn:active:not(:disabled) {
+    @apply opacity-80 scale-[0.98];
+  }
+
+  .sidebar-link:active {
+    @apply bg-gray-200;
+  }
+
+  .card:active {
+    @apply bg-gray-50;
+  }
+}
+
+/* Swipeable list item */
+.swipeable-item {
+  touch-action: pan-y pinch-zoom;
+}
+
+/* Mobile-specific spacing for main content when bottom nav is present */
+.has-bottom-nav {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Full height on mobile considering bottom nav */
+.mobile-full-height {
+  height: calc(100dvh - 56px - env(safe-area-inset-bottom, 0px));
+}
+
+/* Floating action button for mobile */
+.fab {
+  @apply fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full bg-[#8B4513] text-white shadow-lg flex items-center justify-center;
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.fab:active {
+  @apply scale-95 bg-[#6b350f];
+}
+
+/* Mobile header adjustments */
+@media (max-width: 768px) {
+  .mobile-header {
+    @apply h-14 px-4;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Improved focus states for accessibility */
+@media (max-width: 768px) {
+  *:focus-visible {
+    @apply outline-none ring-2 ring-[#8B4513] ring-offset-2;
+  }
+}

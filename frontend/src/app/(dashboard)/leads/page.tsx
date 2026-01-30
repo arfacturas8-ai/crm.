@@ -2,52 +2,27 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import {
-  Search,
-  Plus,
-  MessageSquare,
-  Mail,
-  Trash2,
-  Edit,
-  Eye,
-  Download,
-  Upload,
-} from 'lucide-react';
+import { Search, Upload, Filter, X } from 'lucide-react';
 import { GET_LEADS, DELETE_LEAD } from '@/graphql/queries/leads';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Badge, getLeadStatusVariant } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
-import { useUIStore } from '@/store/ui-store';
-import { useAuthStore } from '@/store/auth-store';
-import {
-  cn,
-  formatRelativeTime,
-  getWhatsAppLink,
-  formatPhoneDisplay,
-  debounce,
-} from '@/lib/utils';
-import { LEAD_SOURCE_LABELS, type Lead, type LeadSource } from '@/types';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { EmptyLeads } from '@/components/ui/EmptyState';
+import { CardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton';
+import { LeadCard } from '@/components/leads/LeadCard';
+import { LeadTableRow } from '@/components/leads/LeadTableRow';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadDetail } from '@/components/leads/LeadDetail';
 import { ImportExportModal } from '@/components/leads/ImportExportModal';
+import { useUIStore } from '@/store/ui-store';
+import { useAuthStore } from '@/store/auth-store';
 import { useDataPrivacy } from '@/hooks/useDataPrivacy';
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'Todos los estados' },
-  { value: 'new', label: 'Nuevo' },
-  { value: 'contacted', label: 'Contactado' },
-  { value: 'qualified', label: 'Calificado' },
-  { value: 'converted', label: 'Convertido' },
-  { value: 'lost', label: 'Perdido' },
-];
-
-const SOURCE_OPTIONS = [
-  { value: '', label: 'Todas las fuentes' },
-  ...Object.entries(LEAD_SOURCE_LABELS).map(([value, label]) => ({ value, label })),
-];
+import { debounce, cn } from '@/lib/utils';
+import { STATUS_FILTER_OPTIONS, SOURCE_FILTER_OPTIONS } from '@/lib/constants';
+import type { Lead } from '@/types';
 
 export default function LeadsPage() {
   const [search, setSearch] = useState('');
@@ -56,8 +31,9 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [deleteConfirmLead, setDeleteConfirmLead] = useState<Lead | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const { openModal, closeModal } = useUIStore();
+  const { openModal, closeModal, addNotification } = useUIStore();
   const { hasMinimumRole, user, isAdmin, isModerator } = useAuthStore();
 
   // Get agentId for filtering - agents only see their own leads
@@ -76,314 +52,210 @@ export default function LeadsPage() {
 
   // Delete mutation
   const [deleteLead, { loading: deleteLoading }] = useMutation(DELETE_LEAD, {
-    onCompleted: () => {
+    onCompleted: (data) => {
+      if (data?.deleteLead?.success) {
+        addNotification({
+          type: 'success',
+          title: 'Lead eliminado',
+          message: 'El lead se ha movido a la papelera (30 días para recuperar)',
+        });
+      }
       setDeleteConfirmLead(null);
       refetch();
+    },
+    onError: (error) => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'No se pudo eliminar el lead',
+      });
     },
   });
 
   const allLeads: Lead[] = data?.leads?.nodes || [];
-  // Apply data privacy filter - agents see only their data
   const leads = useDataPrivacy<Lead>(allLeads);
   const totalCount = leads.length;
+
+  // Check if any filters are active
+  const hasActiveFilters = statusFilter || sourceFilter;
 
   // Debounced search
   const handleSearch = debounce((value: string) => {
     setSearch(value);
   }, 300);
 
+  // Handlers
+  const handleView = (lead: Lead) => {
+    setSelectedLead(lead);
+    openModal('view-lead');
+  };
+
+  const handleEdit = (lead: Lead) => {
+    setSelectedLead(lead);
+    openModal('edit-lead');
+  };
+
+  const handleDelete = (lead: Lead) => {
+    setDeleteConfirmLead(lead);
+  };
+
+  const clearFilters = () => {
+    setStatusFilter('');
+    setSourceFilter('');
+    setShowFilters(false);
+  };
+
+  const canDelete = hasMinimumRole('moderator');
+
   return (
-    <div className="space-y-4 lg:space-y-6 bg-white min-h-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 lg:gap-4">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Leads</h1>
-          <p className="text-sm text-gray-500">
-            {totalCount} leads en total
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            leftIcon={<Upload size={14} />}
-            className="text-xs lg:text-sm border-gray-200 bg-white hidden sm:flex"
-            onClick={() => setShowImportExport(true)}
-          >
-            Importar/Exportar
-          </Button>
-          <Button leftIcon={<Plus size={14} />} onClick={() => openModal('create-lead')} className="text-xs lg:text-sm">
-            Nuevo Lead
-          </Button>
-        </div>
+    <div className="space-y-4 bg-white min-h-full">
+      {/* Stats bar */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          {totalCount} {totalCount === 1 ? 'lead' : 'leads'}
+          {hasActiveFilters && ' (filtrado)'}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          leftIcon={<Upload size={14} />}
+          className="hidden sm:flex text-xs"
+          onClick={() => setShowImportExport(true)}
+        >
+          Importar/Exportar
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="p-3 lg:p-4 bg-white border-gray-200">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1">
+      {/* Search and Filters */}
+      <div className="space-y-3">
+        {/* Search bar */}
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
             <Input
-              placeholder="Buscar por nombre, email o telefono..."
+              placeholder="Buscar leads..."
               leftIcon={<Search size={16} />}
               onChange={(e) => handleSearch(e.target.value)}
-              className="bg-white border-gray-200 text-sm"
+              className="bg-white"
             />
           </div>
-          <div className="flex gap-2">
-            <Select
-              options={STATUS_OPTIONS}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full md:w-36 lg:w-40 text-sm bg-white border-gray-200"
-            />
-            <Select
-              options={SOURCE_OPTIONS}
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="w-full md:w-36 lg:w-40 text-sm bg-white border-gray-200"
-            />
-          </div>
+          {/* Filter toggle for mobile */}
+          <Button
+            variant={hasActiveFilters ? 'primary' : 'outline'}
+            size="icon"
+            className="md:hidden h-12 w-12"
+            onClick={() => setShowFilters(!showFilters)}
+            aria-label="Filtros"
+          >
+            <Filter size={18} />
+          </Button>
         </div>
-      </Card>
+
+        {/* Filters - always visible on desktop, toggle on mobile */}
+        <div className={cn(
+          'flex gap-2',
+          'md:flex',
+          showFilters ? 'flex' : 'hidden'
+        )}>
+          <Select
+            options={STATUS_FILTER_OPTIONS}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="flex-1 md:flex-none md:w-40"
+          />
+          <Select
+            options={SOURCE_FILTER_OPTIONS}
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="flex-1 md:flex-none md:w-40"
+          />
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={clearFilters}
+              className="h-12 w-12"
+              aria-label="Limpiar filtros"
+            >
+              <X size={18} />
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
         {loading ? (
-          [...Array(5)].map((_, i) => (
-            <Card key={i} className="p-4 bg-white border-gray-200">
-              <div className="animate-pulse space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-100 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))
+          <>
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
         ) : leads.length > 0 ? (
-          leads.map((lead: Lead) => (
-            <Card key={lead.id} className="p-4 bg-white border-gray-200">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#8B4513] font-medium">
-                    {lead.name?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{lead.name}</p>
-                      <p className="text-sm text-gray-500 truncate">
-                        {lead.mobile || lead.email}
-                      </p>
-                    </div>
-                    <Badge variant={getLeadStatusVariant(lead.status)} className="text-xs flex-shrink-0">
-                      {lead.status === 'new' ? 'Nuevo' : lead.status === 'contacted' ? 'Contactado' : lead.status === 'qualified' ? 'Calificado' : lead.status === 'converted' ? 'Convertido' : 'Perdido'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 mt-3">
-                    {lead.mobile && (
-                      <a
-                        href={getWhatsAppLink(lead.mobile)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-[#25D366] text-white rounded-lg"
-                      >
-                        <MessageSquare size={14} />
-                      </a>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedLead(lead);
-                        openModal('view-lead');
-                      }}
-                      className="h-8 w-8"
-                    >
-                      <Eye size={14} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedLead(lead);
-                        openModal('edit-lead');
-                      }}
-                      className="h-8 w-8"
-                    >
-                      <Edit size={14} />
-                    </Button>
-                    {hasMinimumRole('moderator') && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteConfirmLead(lead)}
-                        className="h-8 w-8 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Card>
+          leads.map((lead) => (
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              showDeleteButton={canDelete}
+            />
           ))
         ) : (
-          <Card className="p-8 text-center bg-white border-gray-200">
-            <p className="text-gray-500">No se encontraron leads</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => openModal('create-lead')}
-            >
-              Crear primer lead
-            </Button>
+          <Card className="bg-white border-gray-200">
+            <EmptyLeads onCreateClick={() => openModal('create-lead')} />
           </Card>
         )}
       </div>
 
       {/* Desktop Table View */}
-      <Card className="hidden md:block bg-white border-gray-200">
+      <Card className="hidden md:block bg-white border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase">Contacto</th>
-                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Fuente</th>
-                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase">Estado</th>
-                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell">Fecha</th>
-                <th className="text-right p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nombre
+                </th>
+                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contacto
+                </th>
+                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                  Fuente
+                </th>
+                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Estado
+                </th>
+                <th className="text-left p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">
+                  Fecha
+                </th>
+                <th className="text-right p-3 lg:p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b border-gray-50">
-                    <td className="p-3 lg:p-4" colSpan={6}>
-                      <div className="animate-pulse h-10 bg-gray-100 rounded" />
-                    </td>
-                  </tr>
-                ))
+                <>
+                  <TableRowSkeleton columns={6} />
+                  <TableRowSkeleton columns={6} />
+                  <TableRowSkeleton columns={6} />
+                </>
               ) : leads.length > 0 ? (
-                leads.map((lead: Lead) => (
-                  <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="p-3 lg:p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 lg:w-10 lg:h-10 bg-[#8B4513]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#8B4513] font-medium text-sm">
-                            {lead.name?.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate text-sm">{lead.name}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 lg:p-4">
-                      <div className="space-y-1">
-                        {lead.mobile && (
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href={getWhatsAppLink(lead.mobile)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-xs lg:text-sm hover:text-[#25D366] transition-colors"
-                            >
-                              <MessageSquare size={12} className="text-[#25D366]" />
-                              {formatPhoneDisplay(lead.mobile)}
-                            </a>
-                          </div>
-                        )}
-                        {lead.email && (
-                          <a
-                            href={`mailto:${lead.email}`}
-                            className="flex items-center gap-1 text-xs lg:text-sm text-gray-500 hover:text-[#8B4513] transition-colors"
-                          >
-                            <Mail size={12} />
-                            <span className="truncate max-w-[150px]">{lead.email}</span>
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-3 lg:p-4 hidden lg:table-cell">
-                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                        {LEAD_SOURCE_LABELS[lead.source as LeadSource] || lead.source}
-                      </span>
-                    </td>
-                    <td className="p-3 lg:p-4">
-                      <Badge variant={getLeadStatusVariant(lead.status)} className="text-xs">
-                        {lead.status === 'new' ? 'Nuevo' : lead.status === 'contacted' ? 'Contactado' : lead.status === 'qualified' ? 'Calificado' : lead.status === 'converted' ? 'Convertido' : 'Perdido'}
-                      </Badge>
-                    </td>
-                    <td className="p-3 lg:p-4 text-xs lg:text-sm text-gray-500 hidden xl:table-cell">
-                      {formatRelativeTime(lead.createdAt)}
-                    </td>
-                    <td className="p-3 lg:p-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {lead.mobile && (
-                          <a
-                            href={getWhatsAppLink(lead.mobile)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 lg:p-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors"
-                            title="Enviar WhatsApp"
-                          >
-                            <MessageSquare size={14} />
-                          </a>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            openModal('view-lead');
-                          }}
-                          title="Ver detalles"
-                          className="h-8 w-8"
-                        >
-                          <Eye size={14} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            openModal('edit-lead');
-                          }}
-                          title="Editar"
-                          className="h-8 w-8"
-                        >
-                          <Edit size={14} />
-                        </Button>
-                        {hasMinimumRole('moderator') && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteConfirmLead(lead)}
-                            title="Eliminar"
-                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                leads.map((lead) => (
+                  <LeadTableRow
+                    key={lead.id}
+                    lead={lead}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    showDeleteButton={canDelete}
+                  />
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center">
-                    <p className="text-gray-500">No se encontraron leads</p>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => openModal('create-lead')}
-                    >
-                      Crear primer lead
-                    </Button>
+                  <td colSpan={6}>
+                    <EmptyLeads onCreateClick={() => openModal('create-lead')} />
                   </td>
                 </tr>
               )}
@@ -422,30 +294,21 @@ export default function LeadsPage() {
       </Modal>
 
       {/* Delete Confirmation Dialog */}
-      {deleteConfirmLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirmLead(null)} />
-          <Card className="relative z-10 w-full max-w-md mx-4 p-6 bg-white">
-            <h3 className="text-lg font-semibold mb-2">Confirmar eliminacion</h3>
-            <p className="text-gray-500 mb-4">
-              Estas seguro de que deseas eliminar el lead <strong>{deleteConfirmLead.name}</strong>?
-              Esta accion no se puede deshacer.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setDeleteConfirmLead(null)} className="border-gray-200">
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                isLoading={deleteLoading}
-                onClick={() => deleteLead({ variables: { input: { id: deleteConfirmLead.id } } })}
-              >
-                Eliminar
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!deleteConfirmLead}
+        title="Eliminar lead"
+        message={`¿Estás seguro de que deseas eliminar el lead "${deleteConfirmLead?.name}"? Podrás recuperarlo en los próximos 30 días.`}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={deleteLoading}
+        onConfirm={() => {
+          if (deleteConfirmLead) {
+            deleteLead({ variables: { input: { id: deleteConfirmLead.id } } });
+          }
+        }}
+        onCancel={() => setDeleteConfirmLead(null)}
+      />
 
       {/* Import/Export Modal */}
       {showImportExport && (

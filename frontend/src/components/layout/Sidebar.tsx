@@ -9,13 +9,13 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Menu,
   X,
   Calendar,
   UserCog,
   Home,
   Users,
   ClipboardList,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -23,7 +23,7 @@ import { useAuthStore } from '@/store/auth-store';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Nuevo', href: '/leads', icon: UserPlus },
+  { name: 'Leads', href: '/leads', icon: UserPlus },
   { name: 'Seguimiento', href: '/deals', icon: Kanban },
   { name: 'Panel Agentes', href: '/panel-agentes', icon: Users },
   { name: 'Calendario', href: '/calendario', icon: Calendar },
@@ -32,7 +32,8 @@ const navigation = [
 
 const adminNavigation = [
   { name: 'Agentes', href: '/agentes', icon: UserCog },
-  { name: 'Panel Accion', href: '/panel-accion', icon: ClipboardList },
+  { name: 'Panel Acción', href: '/panel-accion', icon: ClipboardList },
+  { name: 'Configuración', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -45,32 +46,43 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden animate-fade-in"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-
-      {/* Mobile menu button */}
-      <button
-        className="fixed top-5 left-4 z-[100] md:hidden flex items-center justify-center w-12 h-12 bg-[#8B4513] text-white shadow-lg rounded-full"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        aria-label="Menu"
-      >
-        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
 
       {/* Sidebar */}
       <aside
         className={cn(
           'sidebar fixed md:relative z-50 md:z-0',
           sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          // Mobile: slide in from left
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+          // Mobile: full height with safe area
+          'md:h-screen'
         )}
+        style={{
+          // Safe area for notched devices
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+        }}
       >
-        {/* Logo */}
+        {/* Header with logo and close button */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+          {/* Mobile close button */}
+          <button
+            className="md:hidden p-2 -ml-2 hover:bg-gray-100 rounded-lg active:bg-gray-200 transition-colors"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Cerrar menú"
+          >
+            <X size={24} className="text-gray-600" />
+          </button>
+
           {!sidebarCollapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2"
+              onClick={() => setSidebarOpen(false)}
+            >
               <img
                 src="/images/habita-logo.jpg"
                 alt="HabitaCR"
@@ -90,7 +102,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-thin">
+        <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto scrollbar-thin scroll-touch">
           {navigation.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -98,7 +110,7 @@ export function Sidebar() {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'sidebar-link',
+                  'sidebar-link min-h-[44px]', // Touch target
                   isActive && 'sidebar-link-active'
                 )}
                 onClick={() => setSidebarOpen(false)}
@@ -126,7 +138,7 @@ export function Sidebar() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      'sidebar-link',
+                      'sidebar-link min-h-[44px]',
                       isActive && 'sidebar-link-active'
                     )}
                     onClick={() => setSidebarOpen(false)}
@@ -141,7 +153,7 @@ export function Sidebar() {
         </nav>
 
         {/* User section */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <div className={cn('flex items-center gap-3', sidebarCollapsed && 'justify-center')}>
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-primary font-semibold">
@@ -158,10 +170,13 @@ export function Sidebar() {
 
           <button
             className={cn(
-              'sidebar-link mt-3 text-red-600 hover:bg-red-50 w-full',
+              'sidebar-link mt-3 text-red-600 hover:bg-red-50 w-full min-h-[44px]',
               sidebarCollapsed && 'justify-center'
             )}
-            onClick={logout}
+            onClick={() => {
+              setSidebarOpen(false);
+              logout();
+            }}
           >
             <LogOut size={20} />
             {!sidebarCollapsed && <span>Cerrar sesión</span>}

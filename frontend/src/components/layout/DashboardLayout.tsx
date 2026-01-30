@@ -4,7 +4,9 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { MobileNav } from './MobileNav';
 import { Notifications } from '../ui/Notifications';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
@@ -31,7 +33,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground">Cargando...</p>
@@ -41,24 +43,35 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-[100dvh] bg-white">
       <div className="flex">
         <Sidebar />
 
         {/* Main content */}
         <main
           className={cn(
-            'flex-1 min-h-screen transition-all duration-300',
+            'flex-1 min-h-[100dvh] transition-all duration-300',
             'ml-0 md:ml-0' // Sidebar handles its own positioning
           )}
         >
           <Header />
 
-          <div className="p-4 md:p-6 pt-20 md:pt-6">
-            {children}
+          {/* Content area with proper mobile spacing */}
+          <div className={cn(
+            'p-4 md:p-6',
+            'pt-20 md:pt-6', // Header spacing
+            'pb-24 md:pb-6', // Bottom nav spacing on mobile
+            'scroll-touch no-pull-refresh'
+          )}>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <MobileNav />
 
       {/* Global notifications */}
       <Notifications />
